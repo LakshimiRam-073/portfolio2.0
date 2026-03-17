@@ -1,0 +1,36 @@
+{
+  "name": "portfolio",
+  "version": "1.0.0",
+  "description": "Minimalistic portfolio website with blog support",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "clean": "rm -rf .next out node_modules"
+  },
+  "dependencies": {
+    "framer-motion": "^12.37.0",
+    "gray-matter": "^4.0.3",
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "rehype-stringify": "^9.0.3",
+    "remark": "^14.0.3",
+    "remark-gfm": "^3.0.1",
+    "remark-rehype": "^10.1.0",
+    "typewriter-effect": "^2.22.0",
+    "unified": "^10.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.0"
+  }
+}
