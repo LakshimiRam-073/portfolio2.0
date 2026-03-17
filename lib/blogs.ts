@@ -94,9 +94,6 @@ export function getBlogPost(slug: string, category: string = ''): BlogPost | nul
   }
   
   const fullPath = path.join(dir, `${slug}.md`)
-  console.log('DEBUG getBlogPost - dir:', dir)
-  console.log('DEBUG getBlogPost - fullPath:', fullPath)
-  console.log('DEBUG getBlogPost - exists:', fs.existsSync(fullPath))
 
   if (!fs.existsSync(fullPath)) {
     return null

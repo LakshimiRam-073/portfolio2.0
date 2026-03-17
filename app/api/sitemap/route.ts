@@ -1,4 +1,4 @@
-import { getCategoryStructure, getPosts } from '@/lib/blogs'
+import { getCategoryStructure } from '@/lib/blogs'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
