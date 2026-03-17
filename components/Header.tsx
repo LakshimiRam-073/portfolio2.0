@@ -13,7 +13,7 @@ export default function Header() {
           href="/"
           className="text-lg font-medium text-gray-900 dark:text-stone-100 hover:opacity-70 transition-opacity"
         >
-          .noob_notes
+          stupid_notes.sh
         </Link>
 
         <div className="flex gap-5 items-center text-sm max-w-3xl">

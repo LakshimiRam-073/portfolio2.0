@@ -3,9 +3,9 @@ import Header from '@/components/Header'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
-  title: 'My Portfolio',
+  title: 'stupid_notes.sh',
   description: 'A minimalistic portfolio showcasing my blogs and projects.',
-  authors: [{ name: 'Your Name' }],
+  authors: [{ name: 'Lakshimi Raman S' }],
   icons: {
     icon: '/favicon.ico',
   },
