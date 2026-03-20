@@ -95,7 +95,21 @@ export function getBlogPost(slug: string, category: string = ''): BlogPost | nul
   
   const fullPath = path.join(dir, `${slug}.md`)
 
+  console.log('getBlogPost debug:', {
+    slug,
+    category,
+    lookingFor: fullPath,
+    exists: fs.existsSync(fullPath),
+  })
+
   if (!fs.existsSync(fullPath)) {
+    // List files in directory for debugging
+    try {
+      const dirContents = fs.readdirSync(dir)
+      console.log('Files in directory:', { dir, contents: dirContents })
+    } catch (e) {
+      console.log('Could not read directory:', dir, e)
+    }
     return null
   }
 
@@ -110,6 +124,7 @@ export function getBlogPost(slug: string, category: string = ''): BlogPost | nul
       path: category ? `${category}/${slug}` : slug,
     }
   } catch (error) {
+    console.error('Error reading blog post:', error)
     return null
   }
 }

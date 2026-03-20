@@ -10,33 +10,36 @@ interface Params {
 }
 
 export async function generateStaticParams() {
-  const categories = getCategoryStructure()
-  const params: { slug: string[] }[] = []
+  try {
+    const categories = getCategoryStructure()
+    const params: { slug: string[] }[] = []
 
-  function extractParams(cats: any[]) {
-    cats.forEach((cat) => {
-      // blogs in this category
-      cat.blogs.forEach((blog: any) => {
-        const pathParts = cat.path
-          .split('/')
-          .filter(Boolean)
-          .map((p: string) => encodeURIComponent(p))
+    function extractParams(cats: any[]) {
+      cats.forEach((cat) => {
+        // blogs in this category
+        cat.blogs.forEach((blog: any) => {
+          const pathParts = cat.path.split('/').filter(Boolean)
 
-        params.push({
-          slug: [...pathParts, encodeURIComponent(blog.slug)],
+          params.push({
+            slug: [...pathParts, blog.slug],
+          })
         })
+
+        // recurse into subcategories
+        if (cat.subcategories?.length > 0) {
+          extractParams(cat.subcategories)
+        }
       })
+    }
 
-      // recurse into subcategories
-      if (cat.subcategories?.length > 0) {
-        extractParams(cat.subcategories)
-      }
-    })
+    extractParams(categories)
+    
+    console.log('Generated static params:', JSON.stringify(params, null, 2))
+    return params
+  } catch (error) {
+    console.error('Error in generateStaticParams:', error)
+    return []
   }
-
-  extractParams(categories)
-
-  return params
 }
 
 export default async function BlogPost({ params }: { params: Params['params'] }) {
@@ -46,13 +49,16 @@ export default async function BlogPost({ params }: { params: Params['params'] })
     notFound()
   }
 
-  const decodedSlug = slug.map((s) => decodeURIComponent(s))
-  const blogSlug = decodedSlug[decodedSlug.length - 1]
-  const categoryPath = decodedSlug.slice(0, -1).join('/')
+  // No need to decode since Next.js handles URL encoding for us
+  const blogSlug = slug[slug.length - 1]
+  const categoryPath = slug.slice(0, -1).join('/')
+
+  console.log('Accessing blog with:', { slug, blogSlug, categoryPath })
 
   const post = getBlogPost(blogSlug, categoryPath)
 
   if (!post) {
+    console.error('Blog post not found:', { blogSlug, categoryPath })
     notFound()
   }
 
