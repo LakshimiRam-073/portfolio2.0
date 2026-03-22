@@ -17,5 +17,5 @@ I love to write technical deep-dives on system design, databases, and practical 
 
 ## Social
 - GitHub: [LakshimiRam-073](https://github.com/LakshimiRam-073)
-- LinkedIn: [Your Name](https://linkedin.com/in/your-username)
-- Instagram: [@yourhandle](https://instagram.com/yourhandle)
+- LinkedIn: [Lakshimi Raman](https://www.linkedin.com/in/lakshimi-raman-s-b576b4240?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app)
+<!-- - Instagram: [@yourhandle](https://instagram.com/yourhandle) -->

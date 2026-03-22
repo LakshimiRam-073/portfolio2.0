@@ -212,7 +212,7 @@ To explain the code, I used `char*`  to do pointer arithmetic to move `metablock
 
 If not present in the Linked List then what ? We will ask the OS to extend.
 
-```c
+```cpp
 metablock *request_os_heap(size_t size){
   
   metablock *current_program_break = sbrk(0);

@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -55,6 +54,18 @@ html, body {
   width: 100%;
 }
 
+.code-wrapper {
+  position: relative;
+}
+
+.code-wrapper::before {
+  content: "C";
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
 /* Cursor animation */
 
 @keyframes blink {
@@ -205,25 +216,24 @@ html.dark .markdown code {
   font-size: 0.9rem;
   line-height: 1.7;
 
-  background: #f8f8f7; /* softer off-white */
-  border: 1px solid #e7e5e4;
+  background: #0d1117; /* GitHub dark */
+  border: 1px solid #30363d;
 
   padding: 1.5rem;
   border-radius: 10px;
 
   overflow-x: auto;
-
-  margin-top: 2rem;
-  margin-bottom: 2rem;
+  margin: 2rem 0;
 }
 
-html.dark .markdown pre {
-  background: #111;
-  border-color: #262626;
+/* Light mode override */
+html:not(.dark) .markdown pre {
+  background: #f6f8fa;
+  border-color: #d0d7de;
 }
 
 .markdown pre code {
-  background: none;
+  background: none !important;
   padding: 0;
 }
 
@@ -281,7 +291,24 @@ html.dark .markdown td {
   border-color: #27272a;
 }
 
-/* Horizontal rule */
+.markdown .line--highlighted {
+  background-color: rgba(255, 255, 0, 0.08);
+}
+
+html.dark .markdown pre {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .markdown .line--highlighted {
+  background-color: rgba(255, 255, 0, 0.12);
+}
+
+.markdown code:not(pre code) {
+  background: #f5f5f4;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
 
 .markdown hr {
   margin-top: 3rem;
