@@ -4,19 +4,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 const taglines = [
-  "Building systems that survive the 3 a.m. pager.",
-  "Distributed systems, databases, and the quiet art of not breaking things.",
   "From kernel to cloud — understanding what actually runs the world.",
   "Simplicity isn't optional; it's the foundation of reliability.",
-  "Code that humans can read — machines will figure it out anyway.",
-  "Maintainable code is a love letter to future you (and your teammates).",
-  "Debugging: twice as hard as writing — so write it right the first time.",
-  "Events, streams, idempotency, and the joy of exactly-once semantics.",
-  "Curious why distributed systems hurt — and how to make them hurt less.",
-  "Performance isn't magic; it's measurement + ruthless deletion.",
-  "Talk is cheap. Show me the logs. — (updated Linus Torvalds remix)",
-  "Complexity sells. Simplicity wins in production.",
-  "Abstractions should leak slowly — if they leak at all.",
+  "What I cannot create, I do not understand - Richard Feynman.",
 ];
 
 export default function Home() {
