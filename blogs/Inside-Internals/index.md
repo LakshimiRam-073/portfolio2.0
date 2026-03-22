@@ -99,7 +99,7 @@ The head is stored in BSS. Later it will be mapped at runtime.
 
 ## LL Structure
 
-![](assets/yIzV6x2uA5SLjqjiYWWPQCV-pal8zx13WjGr8njfMBM=.png)
+![Linked List Structure](/assets/yIzV6x2uA5SLjqjiYWWPQCV-pal8zx13WjGr8njfMBM=.png)
 
 This how the memory looks like to a memory  allocator.
 
@@ -180,7 +180,7 @@ What happens if the user asked is 100 bytes and we gave a 500 byte block? It's e
 
 But it requires precise calculation.
 
-![](assets/lk74lxruVrbov_rTvYmMblSDNeDGgbt1U63Tge6K7Fo=.png)
+![Splitting memory blocks](/assets/lk74lxruVrbov_rTvYmMblSDNeDGgbt1U63Tge6K7Fo=.png)
 
 
 
