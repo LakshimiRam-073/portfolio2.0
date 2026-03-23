@@ -3,7 +3,7 @@ import Header from '@/components/Header'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
-  title: 'stupid_notes.sh',
+  title: 'Stupid things',
   description: 'A minimalistic portfolio showcasing my blogs and projects.',
   authors: [{ name: 'Lakshimi Raman S' }],
   icons: {

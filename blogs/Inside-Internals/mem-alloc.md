@@ -352,5 +352,5 @@ Meta: 0x62743bf7a000 | Data: 0x62743bf7a018 | Size: 108 | Free: 1 | Next: (nil)
 
 * This is not a perfect implementation for the memory allocation.
 * As it requires concurrency control,  more precise metablock to store less, inorder to have more data block.
-* This will be posted in git, you can checkout there.
+* This will be posted in [git](https://github.com/LakshimiRam-073/Internal-workings/blob/main/memory-allocator/main.c), you can checkout there.
 
