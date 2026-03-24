@@ -7,6 +7,7 @@ const taglines = [
   "From kernel to cloud — understanding what actually runs the world.",
   "Simplicity isn't optional; it's the foundation of reliability.",
   "What I cannot create, I do not understand - Richard Feynman.",
+  "Have the courage to play fool today, so you can be the Genius tomorrow.",
 ];
 
 export default function Home() {
