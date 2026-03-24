@@ -60,7 +60,7 @@ html, body {
 
 .code-wrapper::before {
   content: "C";
-  position: absolute;
+  position: absolute; 
   top: 8px;
   right: 12px;
   font-size: 0.75rem;
