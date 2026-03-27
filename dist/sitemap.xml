@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://stupidnotes.in/</loc>
+    <lastmod>2026-03-27</lastmod>
+  </url>
+  <url>
+    <loc>https://stupidnotes.in/about</loc>
+    <lastmod>2026-03-27</lastmod>
+  </url>
+  <url>
+    <loc>https://stupidnotes.in/articles</loc>
+    <lastmod>2026-03-27</lastmod>
+  </url>
+  <url>
+    <loc>https://stupidnotes.in/articles/Database-Internals/Chapter-1</loc>
+    <lastmod>2026-03-27</lastmod>
+  </url>
+  <url>
+    <loc>https://stupidnotes.in/articles/Inside-Internals/mem-alloc</loc>
+    <lastmod>2026-03-27</lastmod>
+  </url>
+  <url>
+    <loc>https://stupidnotes.in/articles/System-Design/describing-load</loc>
+    <lastmod>2026-03-27</lastmod>
+  </url>
+</urlset>
