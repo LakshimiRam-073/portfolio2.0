@@ -3,72 +3,118 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
+interface BlogMetadata {
+  title: string
+  date: string
+  description?: string
+  author?: string
+  [key: string]: unknown
+}
+
+interface BlogPost {
+  slug: string
+  metadata: BlogMetadata
+  content: string
+  path: string
+}
+
 interface BlogCategory {
   name: string
   path: string
-  blogs: any[]
+  blogs: BlogPost[]
   subcategories: BlogCategory[]
 }
 
-function BlogCategoryItem({ category, level = 0 }: { category: BlogCategory; level?: number }) {
-  const [isOpen, setIsOpen] = useState(true)
+interface FlatArticle {
+  blog: BlogPost
+  categoryName: string
+  categoryPath: string
+}
 
-  const hasSubcategories = category.subcategories.length > 0
-  const hasBlogs = category.blogs.length > 0
-  const isExpandable = hasSubcategories || hasBlogs
+function calculateReadTime(content: string): number {
+  const wordsPerMinute = 200
+  const words = content.trim().split(/\s+/).length
+  return Math.max(1, Math.ceil(words / wordsPerMinute))
+}
+
+function flattenCategories(categories: BlogCategory[]): FlatArticle[] {
+  const result: FlatArticle[] = []
+
+  function extract(cats: BlogCategory[]) {
+    cats.forEach((cat) => {
+      if (cat.name === 'assets') return
+      cat.blogs.forEach((blog) => {
+        result.push({
+          blog,
+          categoryName: cat.name,
+          categoryPath: cat.path,
+        })
+      })
+      if (cat.subcategories?.length) {
+        extract(cat.subcategories)
+      }
+    })
+  }
+
+  extract(categories)
+
+  result.sort((a, b) => {
+    const dateA = new Date(a.blog.metadata.date || 0).getTime()
+    const dateB = new Date(b.blog.metadata.date || 0).getTime()
+    return dateB - dateA
+  })
+
+  return result
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function ArticleCard({ article }: { article: FlatArticle }) {
+  const { blog, categoryName, categoryPath } = article
+  const readTime = calculateReadTime(blog.content)
 
   return (
-    <div className={level === 0 ? "mb-8" : "ml-6 mt-3"}>
-      <div className="flex items-center gap-2">
-        {isExpandable && (
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="text-sm text-gray-500 dark:text-stone-500 hover:text-gray-800 dark:hover:text-stone-200 transition-colors"
-          >
-            {isOpen ? "▾" : "▸"}
-          </button>
+    <article className="group py-8 first:pt-0">
+      <Link href={`/articles/${categoryPath}/${blog.slug}`} className="block">
+        {/* Category tag */}
+        <span className="inline-block text-xs font-medium uppercase tracking-wider text-green-700 dark:text-green-400 mb-3 font-sans">
+          {categoryName.replace(/-/g, ' ')}
+        </span>
+
+        {/* Title */}
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-stone-100 mb-2 group-hover:text-gray-600 dark:group-hover:text-stone-300 transition-colors leading-tight font-sans">
+          {blog.metadata.title}
+        </h2>
+
+        {/* Description */}
+        {blog.metadata.description && (
+          <p className="text-base text-gray-600 dark:text-stone-400 mb-3 line-clamp-2 leading-relaxed">
+            {blog.metadata.description}
+          </p>
         )}
 
-        <h3
-          className={
-            level === 0
-              ? "text-xl font-semibold text-gray-900 dark:text-stone-100"
-              : "text-base text-gray-700 dark:text-stone-300"
-          }
-        >
-          {category.name}
-        </h3>
-      </div>
-
-      {isOpen && (
-        <div className="mt-2">
-          {hasBlogs && (
-            <ul className="ml-6 space-y-1">
-              {category.blogs.map((blog) => (
-                <li key={blog.slug}>
-                  <Link
-                    href={`/articles/${category.path}/${blog.slug}`}
-                    className="text-gray-700 dark:text-stone-300 hover:text-gray-900 dark:hover:text-white transition-colors"
-                  >
-                    {blog.metadata.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+        {/* Meta row */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-stone-500 font-sans">
+          {blog.metadata.date && (
+            <time dateTime={blog.metadata.date}>{formatDate(blog.metadata.date)}</time>
           )}
-
-          {hasSubcategories && (
-            <div className="mt-3">
-                        {category.subcategories
-            .filter((subcat) => subcat.name !== 'assets')
-            .map((subcat) => (
-                <BlogCategoryItem key={subcat.path} category={subcat} level={level + 1} />
-            ))}
-            </div>
+          <span>·</span>
+          <span>{readTime} min read</span>
+          {blog.metadata.author && (
+            <>
+              <span>·</span>
+              <span>{blog.metadata.author}</span>
+            </>
           )}
         </div>
-      )}
-    </div>
+      </Link>
+    </article>
   )
 }
 
@@ -79,52 +125,44 @@ export default function Articles() {
   useEffect(() => {
     fetch('/api/categories')
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: BlogCategory[]) => {
         setCategories(data)
         setLoading(false)
       })
       .catch(() => setLoading(false))
   }, [])
 
-  return (
-    <div className="blog-container py-12">
-      <div className="markdown">
+  const articles = flattenCategories(categories)
 
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-2">Articles</h1>
-          <p className="text-gray-600 dark:text-stone-400">
-            Explore my articles organized by topic. Click on a topic to expand and view articles.
+  return (
+    <div className="max-w-[680px] mx-auto px-5 py-12 md:py-16">
+      <div className="mb-10">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2 font-sans">Articles</h1>
+        <p className="text-gray-500 dark:text-stone-400 text-base font-sans">
+          Deep dives into databases, system design, and low-level engineering.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="py-16 flex justify-center">
+          <div className="w-6 h-6 border-2 border-gray-300 dark:border-stone-600 border-t-gray-900 dark:border-t-stone-100 rounded-full animate-spin" />
+        </div>
+      ) : articles.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-gray-600 dark:text-stone-400 mb-4 text-lg">
+            No articles yet. Check back soon!
           </p>
         </div>
-
-        {loading ? (
-          <div className="text-center text-gray-600 dark:text-stone-400">
-            Loading articles...
-          </div>
-        ) : categories.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-stone-400 mb-4">
-              No articles yet. Check back soon!
-            </p>
-            <p className="text-sm text-gray-500 dark:text-stone-500">
-              Articles appear automatically when added to the{" "}
-              <code className="bg-gray-100 dark:bg-stone-800 px-2 py-1 rounded">
-                blogs/
-              </code>{" "}
-              folder.
-            </p>
-          </div>
-        ) : (
-          <div>
-            {categories
-              .filter((category) => category.name !== "assets")
-              .map((category) => (
-                <BlogCategoryItem key={category.path} category={category} />
-              ))}
-          </div>
-        )}
-
-      </div>
+      ) : (
+        <div className="divide-y divide-gray-200 dark:divide-stone-800">
+          {articles.map((article) => (
+            <ArticleCard
+              key={`${article.categoryPath}/${article.blog.slug}`}
+              article={article}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

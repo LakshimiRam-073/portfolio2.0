@@ -1,39 +1,43 @@
 {
   "name": "portfolio",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "private": true,
   "description": "Minimalistic portfolio website with blog support",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "npm run build:content && vite",
+    "build": "npm run build:content && vite build",
+    "build:content": "node scripts/build-content.mjs",
+    "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "clean": "rm -rf .next out node_modules"
+    "format": "prettier --write \"**/*.{ts,tsx,md,css}\"",
+    "clean": "rm -rf dist node_modules public/data public/sitemap.xml"
   },
   "dependencies": {
     "framer-motion": "^12.37.0",
-    "gray-matter": "^4.0.3",
-    "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "rehype-pretty-code": "^0.14.3",
+    "react-helmet-async": "^2.0.0",
+    "react-router-dom": "^6.20.0",
+    "typewriter-effect": "^2.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "autoprefixer": "^10.4.14",
+    "gray-matter": "^4.0.3",
+    "postcss": "^8.4.24",
     "rehype-raw": "^7.0.0",
     "rehype-stringify": "^9.0.3",
     "remark": "^14.0.3",
     "remark-gfm": "^3.0.1",
     "remark-rehype": "^10.1.0",
     "shiki": "^4.0.2",
-    "typewriter-effect": "^2.22.0",
-    "unified": "^10.1.2"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.24",
     "tailwindcss": "^3.3.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "unified": "^10.1.2",
+    "unist-util-visit": "^5.0.0",
+    "vite": "^5.0.0"
   }
 }

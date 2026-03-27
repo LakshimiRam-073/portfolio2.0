@@ -1,9 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './pages/**/*.{js,ts,jsx,tsx}',
-    './components/**/*.{js,ts,jsx,tsx}',
-    './app/**/*.{js,ts,jsx,tsx}',
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
@@ -12,14 +11,9 @@ module.exports = {
         light: '#f5f5f5',
       },
       fontFamily: {
-        sans: ['Poppins', 'sans-serif'],
-      },
-      fontWeight: {
-        thin: '300',
-        normal: '400',
-        medium: '500',
-        semibold: '600',
-        bold: '700',
+        sans: ['"Manrope"', 'system-ui', 'sans-serif'],
+        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
       },
     },
   },

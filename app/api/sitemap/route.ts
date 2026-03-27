@@ -2,7 +2,7 @@ import { getCategoryStructure } from '@/lib/blogs'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://stupidnotes.in'
   
   const urls: string[] = [
     '/',
