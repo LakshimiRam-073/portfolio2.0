@@ -1,8 +1,0 @@
-This is a placeholder for your resume PDF.
-
-To use your resume:
-1. Replace this file with your actual resume.pdf
-2. Keep the filename as "resume.pdf" so the download button works correctly
-3. The file will be served from the public/ folder
-
-Your resume will be accessible at /resume.pdf on your website.

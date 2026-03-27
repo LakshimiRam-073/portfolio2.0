@@ -1,7 +1,22 @@
+# Dependencies
 node_modules
-.next
-out
+
+# Build output
+dist
+
+# Generated content (built from markdown at build time)
+public/data
+public/sitemap.xml
+
+# Environment
 .env.local
 .env
+
+# OS / Editor
 .DS_Store
 *.pem
+*.log
+
+# Legacy Next.js (no longer used)
+.next
+out
