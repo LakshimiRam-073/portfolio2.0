@@ -116,13 +116,13 @@ export default function Articles() {
     <>
       <Helmet>
         <title>Articles | Stupid Notes</title>
-        <meta name="description" content="Deep dives into databases, system design, and low-level engineering." />
+        <meta name="description" content="Deep dives into databases, system design, and low-level engineering with my stupid drawings." />
       </Helmet>
       <div className="max-w-[1100px] w-full mx-auto px-8 py-12 md:py-16 max-md:px-6 max-sm:px-4">
         <div className="mb-10">
           <h1 className="text-3xl sm:text-4xl font-bold mb-2 font-sans">Articles</h1>
           <p className="text-gray-500 dark:text-stone-400 text-base font-sans">
-            Deep dives into databases, system design, and low-level engineering.
+            Deep dives into databases, system design, and low-level engineering with my stupid drawings.
           </p>
         </div>
 

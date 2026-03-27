@@ -139,7 +139,7 @@ export default function Articles() {
       <div className="mb-10">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2 font-sans">Articles</h1>
         <p className="text-gray-500 dark:text-stone-400 text-base font-sans">
-          Deep dives into databases, system design, and low-level engineering.
+          Deep dives into databases, system design, and low-level engineering with my stupid drawings.
         </p>
       </div>
 
