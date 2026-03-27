@@ -12,7 +12,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['"Manrope"', 'system-ui', 'sans-serif'],
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
     },

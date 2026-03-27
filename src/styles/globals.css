@@ -110,7 +110,7 @@ html, body {
 /* Headings */
 
 .markdown h1 {
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Space Grotesk", system-ui, sans-serif;
   font-size: clamp(2.2rem, 5vw, 3rem);
   font-weight: 800;
   margin-top: 2.5rem;
@@ -125,7 +125,7 @@ html.dark .markdown h1 {
 }
 
 .markdown h2 {
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Space Grotesk", system-ui, sans-serif;
   font-size: clamp(1.6rem, 3.5vw, 2.1rem);
   font-weight: 700;
   margin-top: 2.5rem;
