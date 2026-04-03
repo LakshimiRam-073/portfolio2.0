@@ -1,9 +1,13 @@
+---
+title: Chapter 2
+date: 2026-04-3
+description: BTree and Disk.
+author: Lakshimi Raman S
+---
+
 # Chapter 2
 
-
 # BTree and Disk
-
-
 
 Note: Don't consider it as the perfect replica/ Exact notes of the book. It may have some of my ideas and findings about the topics and changes from the original content.
 
