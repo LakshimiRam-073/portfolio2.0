@@ -30,10 +30,11 @@ Then later he joined a Product company when he was 20, where he is a DBA(Databas
 Does harish think he can’t create or understand all these internals?
 No, Screw those thoughts.
  
-He still tries to learn things in Low level and system wide level. He didn't care about others think or how they laugh at him. If he wanted to learn OS fully, he will learn all concepts in the OS and rip apart the source code to learn. Harish idealogy is simple "It's just our mind stopping us".
+He still tries to learn things in Low level and system wide level. He didn't care about others think or how they laugh at him. If he wants to learn any technology, he goes all in — learning every concept and even ripping apart the source code to understand how it really works.
 
-And still this guy never stops asking questions. What a silly guy he is :-).
+Harish idealogy is simple: "It's just our mind stopping us".
 
+And this guy? He still hasn’t stopped asking questions. What a silly fellow he is.
 
 
 ## Core Interests
