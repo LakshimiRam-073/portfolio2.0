@@ -27,8 +27,8 @@ But when it come to databases, there are concerns. We cannot use the same data s
 2. If a Disk is used then the access speed will be lesser. The speed will be lesser, it will bring down our speed to milliseconds.
 
 > **What it's just milliseconds? It is way lesser right?**
-> Well in 1 nanosecond $(10^{-9})$ - Light could travel approximately 30 cm.
-> Well in 1 millisecond $(10^{-3})$ - Light could travel approximately 300km.
+> Well in 1 nanosecond (10⁻⁹ s) - Light could travel approximately 30 cm.
+> Well in 1 millisecond (10⁻³ s) - Light could travel approximately 300km.
 
 So if we are going to access the disk for any operation it would be so costly.
 
@@ -36,7 +36,7 @@ So if we are going to access the disk for any operation it would be so costly.
 
 ## Binary Search
 
-The easiest way to find the data(In - memory) would be a Binary Search Tree(BST), because it has a search complexity within $\log_2 N$. And it would be easier to manage the data.
+The easiest way to find the data(In - memory) would be a Binary Search Tree(BST), because it has a search complexity within O(log₂ N). And it would be easier to manage the data.
 
 We can just balance the trees when the data is random or not in order.
 
@@ -56,7 +56,7 @@ Because the are 2 main reasons we can't take the BST
 
 Why Hieght of a tree?
 
-If we are having a million records, just span accress the tree the hieght will be $\log_{2} 1Million \approx 20$. So if we have to find a node, we should seek a disk 20 times? That is crazy... each time approximately we would get 20 milliseconds if HDD, so we would get 20 x 20 ms, which will be 400 ms approximately half second.
+If we are having a million records, just span accress the tree the hieght will be h ≈ log₂(1,000,000) ≈ 20. So if we have to find a node, we should seek a disk 20 times? That is crazy... each time approximately we would get 20 milliseconds if HDD, so we would get 20 x 20 ms, which will be 400 ms approximately half second.
 
 So we have to make sure that the nodes that span across more hieghts will cause us issue, to find a value we should maximum look upto only 2-3 times.
 
@@ -141,7 +141,7 @@ This locality reduces the number of expensive random I/O operations.
 
 
 
-So, simply speaking even if you have a billions of records, it only takes 2-3 disk reads. so Hieght $h \approx \log_mN$, Where m -> no of keys per node, and N-> no of Keys.
+So, simply speaking even if you have a billions of records, it only takes 2-3 disk reads. so Hieght h ≈ logₘ(N), Where m -> no of keys per node, and N-> no of Keys.
 
 
 
@@ -180,7 +180,7 @@ Each separator key defines a clear partition:
 
 * The first pointer in a node points to the subtree containing all keys less than the first separator key.
 * The last pointer points to the subtree containing all keys greater than or equa&#x6C;**&#x20;to** the last separator key.
-* For any two consecutive separator keys $K_{i-1}$ and $K_i$, the pointer between them leads to the subtree holding keys $ K_{i-1} ≤ Ks < K_i$, where $Ks$ is any key belonging to that subtree.
+* For any two consecutive separator keys K_i-1 and K_i, the pointer between them leads to the subtree holding keys K_{i-1} ≤ K_s < K_i, where Ks is any key belonging to that subtree.
 
 
 
