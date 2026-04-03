@@ -1,20 +1,44 @@
 # Lakshimi Raman 
- Also known as Harish Kumar
+ AKA Harish Kumar
 
-## About
-Software engineer focused on building systems that are designed to last — not just pass tests.
+## Story Time
+
+Harish likes to understand how things work. When he was little(8 YO) he tried to understand how an RC remote worked and tried to rip apart every thing and finally found the motor, batteries, wires. Little did he know when he removed those wires, the car stopped working. Said "Oh no.." and got worried that his mother would scold him. Then said "Okay Let's fix this" and tried to reassemble the whole car back to the original, and wondering in his mind "How these things works?".
+
+Harish grew.... Now he's 12 now.
+
+And Harish mother(a CS Teacher) bought a computer. Guess what he loved it. And he sat in the monitor for hours playing games(Prince of persia, GTA, Assassin's creed, Total overdose, Just cause 3). But he always wonders and asks silly questions like "Why some Fan is spinning when we turn on the computer?", "How the CPU is working?", "What is RAM? why does we need so much to download this game? How much of RAM does my computer have?", "What is a GPU and why it is a must to play this game?"...... And he always tries to search answers over the internet.
+
+Later his computer broke ;-(, He tried everything he possibly could, but couldn’t fix it. His mom then called professionals to repair it, he sat there and watched the professionals do the work. And finally they replaced the system with a better one(Windows XP -> Windows 7). At the time he was so little, he couldn't understand and but he still tried.
+
+Now he's 16 wanted to take CS group. But he was forced(Not by marks) to take Math-Bio, still he likes physics and curious to know how semiconductors work.
+
+These questions and curiosity brings him to take Electronics in college(Tier 2), where he learnt many things like Microcontroller, CPU, RAM ,etcc.... And kept wondering "How these guys are inventing those things?". And wondered how they are connecting and contacting them with Software?. And he practiced coding to know how the software was communicating with hardware. 
+
+He wanted to learn how machines are communicating, How network works, Their actual internals. But when harish said to his friends they said "That’s only for people in Tier 1 colleges". Harish was sad. But never stopped learning.
+
+Then later he joined a Product company when he was 20, where he is a DBA(Database Administrator) Now he wonders how such massive amounts of data are handled, how systems manage so much load, and how they scale to handle large traffic (system design).
+
+Does harish think he can’t create or understand all these internals?
+No, Screw those thoughts.
+ 
+He still tries to learn things in Low level and system wide level. He didn't care about others think or how they laugh at him. If he wanted to learn OS fully, he will learn all concepts in the OS and rip apart the source code to learn. Harish idealogy is simple "It's just our mind stopping us".
+
+And still this guy never stops asking questions. What a silly guy he is :-).
+
+
 
 ## Core Interests
-Distributed systems, databases, and scalable architectures that hold under real-world pressure.
+Harish likes Distributed systems, databases, and scalable architectures that hold under real-world pressure.
 
 ## Dream
-Build a distributed database from scratch with a focus on reliability, availability, and fault tolerance.
+Harish wants to build a distributed database from scratch with a focus on reliability, availability, and fault tolerance.
 
 ## Engineering Mindset
 Low-level first: memory, storage, execution — understand by recreating systems from the ground up.
 
 ## Writing
-I love to write technical deep-dives on system design, databases, and practical engineering challenges.
+Harish loves to write technical deep-dives on system design, databases, and practical engineering challenges.
 
 ## Social
 - GitHub: [LakshimiRam-073](https://github.com/LakshimiRam-073)
