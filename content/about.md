@@ -4,7 +4,7 @@
 ## Story Time
 
 ### The Curious 8-Year-Old
-Harish likes to understand how things work. When he was little(8 YO) he tried to understand how an RC remote worked and tried to rip apart every thing and finally found the motor, batteries, wires. Little did he know when he removed those wires, the car stopped working. Said "Oh no.." and got worried that his mother would scold him. Then said "Okay Let's fix this" and tried to reassemble the whole car back to the original, and wondering in his mind "How these things works?".
+Harish likes to understand how things work. When he was little(8 YO) he tried to understand how an RC car worked and tried to rip apart every thing and finally found the motor, batteries, wires. Little did he know when he removed those wires, the car stopped working. Said "Oh no.." and got worried that his mother would scold him. Then said "Okay Let's fix this" and tried to reassemble the whole car back to the original, and wondering in his mind "How these things works?".
 
 ### First Computer Love
 Harish grew.... Now he's 12 now.
