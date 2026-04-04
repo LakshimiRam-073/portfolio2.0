@@ -27,7 +27,7 @@ For example: The Database engine from Mysql(B-Tree based) and a Key value store 
 
 1. **OLTP Databases.**
 
-   OLTP(Online Transaction Processing) databases are the holy grail of the buisness systems, Every single banks will use the OLTP based system inorder to survive the machine  or OS crashes to maintain their transaction based systems.
+   OLTP(Online Transaction Processing) databases are the holy grail of the buisness systems, Every single banks will use the OLTP based system inorder to survive the machine or OS crashes to maintain their transaction based systems.
 
    Every change will be made via a transaction(TX) - No partial writes. System stays atomic all the time.
 
