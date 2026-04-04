@@ -10,13 +10,13 @@ author: Lakshimi Raman S
 
 # Prerequisites
 
-Inorder to know what a memory allocator is we need to know how to process gets its memory and how the memory is split between the process. And to know the basic C knowledge(which I mention to know what a 'malloc' is). And some basic data structures
+Inorder to know what a memory allocator is we need to know how the process gets its memory and how the memory is split between the process, basic C knowledge(which I mention to know what a 'malloc' is) and some basic data structures.
 
 
 
 **What is a Process's memory?**
 
-In each process the OS will allocate some virtual memory to use that for a process..Think of it like giving you some own flat where you can do anything. And you won't interfere with your space with some other flat mates.
+In each process the OS will allocate some virtual memory to use that for a process..Think of it like giving you some own flat where you can do anything. And you won't interfere your space with some other flat mates.
 
 1. Stack - It stores the local variables and the frame space for execution of process.
 2. BSS - It stores the uninitialized global variables and the constants
@@ -26,7 +26,7 @@ In each process the OS will allocate some virtual memory to use that for a proce
 
 These are called the Memory segments. Think of it like a flat with a Room, Hall, Kitchen, Dining, Balcony..
 
-When it comes to Stack it requires less memory (Usually **8MB** for a process) You can find it by `ulimit -s`. But when it's Heap it will outgrow to such extend.
+When it comes to Stack it requires less memory (Usually **8MB** for a process) You can find it by `ulimit -s`. But when it's Heap it will outgrow to any extend.
 
 **Note:&#x20;**`ulimit` command is the setting given by Linux OS to configure and control the user limit to the memory. You can able to set limits to how much process, memory, stack meomry, etc... it can run on the OS for that user.
 
@@ -68,7 +68,7 @@ When you allocate memory of 100 bytes
 void *p = malloc(100);
 ```
 
-It will be actually a block of memory will be allocated. What is exactly a block here ?
+It will be actually a block of memory that will be allocated. What is exactly a block here ?
 
 ```
 | metadata | 100 bytes usable by program |
@@ -76,7 +76,7 @@ It will be actually a block of memory will be allocated. What is exactly a block
             returned pointer (p)
 ```
 
-This is exactly a block of storage. And what does the meta data looks like?
+This is exactly a block of storage. And what does the meta data look like?
 
 ```c
 typedef struct metablock{
@@ -115,7 +115,7 @@ By requesting the OS with `sbrk`.
 
 When we call sbrk(0) it gives the current limit of the heap ends in the process(i.e that is the address of page-break)
 
-Then we would ask the sbrk by asking the passing the no of bytes we want sbrk(100). Then It will extend the heap by such bytes.
+Then we would ask the sbrk by passing the no of bytes we want sbrk(100). Then It will extend the heap by such bytes.
 
 Example:
 
@@ -141,7 +141,7 @@ Break after:          0x555555757064
 
 You see the heap end is moved by 100 bytes.
 
-Then why does it return the same address in the second line? -> It gives the usable of the heap. 
+Then why does it return the same address in the second line? -> It gives the usable heap. 
 
 #### How does it knows where to fetch the memory?
 
@@ -155,7 +155,7 @@ but It is said to have 3 statergies for the traversal itself
 
 
 
-I don't want to explain all that. You can able to get the understanding in this [Link](https://www.tutorialspoint.com/operating_system/os_memory_allocation_qa2.htm).
+I don't want to explain all that. You can able to get the understanding by going through this [Link](https://www.tutorialspoint.com/operating_system/os_memory_allocation_qa2.htm).
 
 So we are using the First fit algo, but modern memory allocators use more advanced algorithms.
 
@@ -176,7 +176,7 @@ metablock* check_current_free_blocks(size_t size){
 
 &#x20;The above code is to check whether the size the user asked free memory block is present or not in the Linked list of blocks.
 
-What happens if the user asked is 100 bytes and we gave a 500 byte block? It's easy just split the block and add the free block to the list.
+What happens if the user asked 100 bytes and we gave a 500 byte block? It's easy just split the block and add the free block to the list.
 
 But it requires precise calculation.
 
@@ -233,11 +233,11 @@ metablock *request_os_heap(size_t size){
 
 It will syscall the OS and get the heap from it.
 
-#### &#x20;What it actually does ? and what it is internally using ?
+#### &#x20;What it actually does ? and what is it internally using ?
 
 Just combine all these and make some logic to have memory
 
-* First we will check do we have any block does have any memory to use ? 
+* First we will check do we have any block that has any memory to use ? 
   * If we have block, just give the block
     * Ohh it's too large then, split and give.
   * If we don't have the block then ask from OS and extend the heap.

@@ -11,9 +11,9 @@ author: Lakshimi Raman S
 
 ***
 
-What is actually a load? How do we measure in Application systems?.  How does big giants like Netflix, Uber, Twitter and Amazon would describe their load? And  How did it affect them ?. 
+What is actually a load? How do we measure it in Application systems?.  How does big giants like Netflix, Uber, Twitter and Amazon would describe their load? And  How did it affect them ?. 
 
-Yes there are some key metrics and things that we have to know how we describe loads. And practical examples to describe or measure the loads.
+Yes there are some key metrics and things that we have to know to describe loads. And practical examples to describe or measure the loads.
 
 
 
@@ -67,13 +67,13 @@ Transactiosn per second. How much transactions are being done per second?
 
 What is this man? another same concept with just taking out the Q and placing T??? 
 
-But transactions are not only for a Database, it is a logical unit of work. It may requires buisness logic too...  Measuring Transactions per second is not easy. And it depends on the transaction. Consider a Bank with a money transfer transaction and A user filling out the details in a form for his new college, Each transaction has its own understanding.
+But transactions are not only for a Database, it is a logical unit of work. It may requires buisness logic too...  Measuring Transactions per second is not easy. And it depends on the transaction. Consider a Bank with a money transfer transaction and an user filling out the details in a form for his new college, each transaction has its own understanding.
 
 If you compare it with RPS or Active users, you can also map with transactions. So in some buisness logics if you can able to figure out RPS, then you can able to figure out the TPS.
 
 
 
-So finally to comapre with QPS,
+So finally to compare with QPS,
 
 QPS measures database workload at the query level(Even TPS can also be measured, postgres uses [TPS bencharking](https://medium.com/@c.ucanefe/pgbench-load-test-166bdfb5c75a) for conccurency), while TPS measures business-level throughput. Since a single transaction can involve multiple queries and requires consistency guarantees, TPS is typically much lower and harder to scale compared to QPS.
 
@@ -105,10 +105,10 @@ Actual Companies will measure their latency(or time delay) with Just taking the 
 
 The server request will vary with respect to any Latency that we could get,
 
-1. Cause by n/w RTT or packet loss
-2. Cause by message queue slowness.
-3. Cause by bad page read or page fault in memory, need to get from disk.
-4. Cause by context switch of a background process.
+1. Caused by n/w RTT or packet loss
+2. Caused by message queue slowness.
+3. Caused by bad page read or page fault in memory, need to get from disk.
+4. Caused by context switch of a background process.
 5. Or Even from the physical vibrations from Server rack. (Crazy....)
 
 SO it is better to plot with N number of requests.
@@ -186,7 +186,7 @@ Throughput depends on the firepower of the system, i.e., how well it utilizes sy
 
 
 
-Imagine I want send a 5GB file across 10,000 servers, with each server has 40 Gb (5 GB) network bandwidth.
+Imagine I want to send a 5GB file across 10,000 servers, with each server has 40 Gb (5 GB) network bandwidth.
 
 if each would take one second to transfer one file.
 
@@ -251,7 +251,7 @@ Most of the applications are usually biased toward one side, and almost 90% of a
 
 It is always good to identify whether your application is read-heavy or write-heavy. Some applications are more read-heavy with rare writes, and we can express this using ratios like 100:10 or 90:5 (read/write ratio).
 
-Twitter is roughly around 90:10 (read/write),**&#x20;**&#x77;hile Reddit is closer to 100:1.
+Twitter is roughly around 90:10 (read/write), while Reddit is closer to 100:1.
 
 **Why this is important?**
 
