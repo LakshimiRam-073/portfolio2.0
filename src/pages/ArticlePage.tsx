@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import ReadingProgress from '@/components/ReadingProgress'
+import GiscusComments from '@/components/GiscusComments'
 
 interface PostData {
   slug: string
@@ -151,6 +152,9 @@ export default function ArticlePage() {
               __html: post.htmlContent.replace(/<h1[^>]*>.*?<\/h1>/, ''),
             }}
           />
+
+          {/* Comments */}
+          <GiscusComments />
 
           <div className="mt-16 pt-10 border-t border-gray-200 dark:border-stone-800">
             <Link
