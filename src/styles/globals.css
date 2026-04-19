@@ -347,3 +347,94 @@ html.dark .markdown a:hover {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Home page — animated gradient blobs */
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.home-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.55;
+  z-index: -1;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.home-blob.b1 {
+  width: 480px;
+  height: 480px;
+  top: -120px;
+  left: -120px;
+  background: radial-gradient(circle, rgba(134, 239, 172, 0.55), rgba(134, 239, 172, 0) 70%);
+  animation: blob-drift-1 18s ease-in-out infinite;
+}
+
+.home-blob.b2 {
+  width: 420px;
+  height: 420px;
+  bottom: -120px;
+  right: -120px;
+  background: radial-gradient(circle, rgba(252, 211, 77, 0.45), rgba(252, 211, 77, 0) 70%);
+  animation: blob-drift-2 22s ease-in-out infinite;
+}
+
+html.dark .home-blob {
+  opacity: 0.35;
+}
+
+html.dark .home-blob.b1 {
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.5), rgba(34, 197, 94, 0) 70%);
+}
+
+html.dark .home-blob.b2 {
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.4), rgba(217, 119, 6, 0) 70%);
+}
+
+@keyframes blob-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(60px, 40px) scale(1.08); }
+  66%      { transform: translate(-30px, 70px) scale(0.95); }
+}
+
+@keyframes blob-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(-50px, -30px) scale(1.05); }
+  66%      { transform: translate(40px, -60px) scale(0.92); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-blob {
+    animation: none !important;
+  }
+}
+
+/* Typewriter cursor styling */
+.Typewriter__cursor {
+  color: rgb(34 197 94);
+  font-weight: 300;
+}
+
+/* Home page entrance — subtle CSS-only fade up */
+.home-fade-up {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: home-fade-up-kf 0.7s ease-out forwards;
+}
+
+@keyframes home-fade-up-kf {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-fade-up {
+    opacity: 1;
+    transform: none;
+    animation: none !important;
+  }
+}

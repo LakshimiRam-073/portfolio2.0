@@ -29,6 +29,13 @@ export default function Header() {
             Articles
           </Link>
 
+          <Link
+            to="/resources"
+            className="text-gray-600 dark:text-stone-400 hover:text-gray-900 dark:hover:text-stone-100 transition-colors"
+          >
+            Resources
+          </Link>
+
           {mounted && (
             <button
               onClick={toggleDarkMode}

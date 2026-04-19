@@ -4,6 +4,7 @@ import Home from '@/pages/Home'
 import About from '@/pages/About'
 import Articles from '@/pages/Articles'
 import ArticlePage from '@/pages/ArticlePage'
+import Resources from '@/pages/Resources'
 import NotFound from '@/pages/NotFound'
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/about" element={<About />} />
           <Route path="/articles" element={<Articles />} />
           <Route path="/articles/*" element={<ArticlePage />} />
+          <Route path="/resources" element={<Resources />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

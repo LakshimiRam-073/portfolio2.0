@@ -17,6 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
 const BLOGS_DIR = path.join(ROOT, 'blogs')
 const CONTENT_DIR = path.join(ROOT, 'content')
+const RESOURCES_DIR = path.join(ROOT, 'Resources')
 const DATA_DIR = path.join(ROOT, 'public', 'data')
 const SITE_URL = 'https://stupidnotes.in'
 
@@ -156,6 +157,53 @@ function buildCategories(baseDir, relativePath = '') {
   return categories
 }
 
+function buildResources() {
+  const file = path.join(RESOURCES_DIR, 'Resources.md')
+  if (!fs.existsSync(file)) {
+    return { categories: [], totalCount: 0 }
+  }
+  const raw = fs.readFileSync(file, 'utf8')
+  const lines = raw.split(/\r?\n/)
+
+  const categories = []
+  let current = null
+  let totalCount = 0
+
+  // Match "- [Title](url)" optionally followed by " — desc" / " - desc" / ": desc"
+  const linkRe = /^\s*[-*]\s*\[([^\]]+)\]\(([^)]+)\)\s*(?:[—–\-:]\s*(.+))?$/
+
+  for (const line of lines) {
+    const h2 = line.match(/^##\s+(.+?)\s*$/)
+    if (h2) {
+      current = { name: h2[1].trim(), items: [] }
+      categories.push(current)
+      continue
+    }
+    if (!current) continue
+    const m = line.match(linkRe)
+    if (m) {
+      const [, title, url, description] = m
+      let source = ''
+      try {
+        source = new URL(url).hostname.replace(/^www\./, '')
+      } catch {
+        source = ''
+      }
+      current.items.push({
+        title: title.trim(),
+        url: url.trim(),
+        description: (description || '').trim(),
+        source,
+      })
+      totalCount++
+    }
+  }
+
+  // Drop empty categories
+  const filtered = categories.filter((c) => c.items.length > 0)
+  return { categories: filtered, totalCount }
+}
+
 async function build() {
   console.log('Building blog content...')
 
@@ -241,6 +289,15 @@ async function build() {
     JSON.stringify({ htmlContent: aboutHtml })
   )
   console.log('  about.json written')
+
+  // Process resources
+  const resources = buildResources()
+  fs.writeFileSync(
+    path.join(DATA_DIR, 'resources.json'),
+    JSON.stringify(resources)
+  )
+  console.log(`  resources.json written (${resources.totalCount} links across ${resources.categories.length} categories)`)
+  sitemapUrls.push('/resources')
 
   // Generate sitemap
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
