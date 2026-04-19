@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import Typewriter from 'typewriter-effect'
+import SlidingTitle from '@/components/SlidingTitle'
 
 const taglines = [
   "From kernel to cloud — understanding what actually runs the world.",
@@ -114,18 +114,10 @@ export default function Home() {
           </p>
 
           <h1
-            className="home-fade-up text-2xl sm:text-3xl md:text-4xl leading-relaxed font-light text-gray-800 dark:text-stone-200 tracking-wide font-display italic min-h-[5.5rem] sm:min-h-[6rem] md:min-h-[6.5rem] flex items-center justify-center"
+            className="home-fade-up text-2xl sm:text-3xl md:text-4xl font-bold not-italic font-sans text-gray-900 dark:text-stone-100 tracking-tight min-h-[5.5rem] sm:min-h-[6rem] md:min-h-[6.5rem] flex items-center justify-center"
             style={{ animationDelay: '120ms' }}
           >
-            <Typewriter
-              options={{
-                strings: taglines,
-                autoStart: true,
-                loop: true,
-                delay: 45,
-                deleteSpeed: 25,
-              }}
-            />
+            <SlidingTitle quotes={taglines} />
           </h1>
 
           <p
@@ -142,7 +134,7 @@ export default function Home() {
       </section>
 
       {/* Nav cards */}
-      <section className="px-5 sm:px-8 mb-20">
+      <section className="px-5 sm:px-8 mb-28 md:mb-36">
         <div className="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4">
           <NavCard
             to="/articles"
