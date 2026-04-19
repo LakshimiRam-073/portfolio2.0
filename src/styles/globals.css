@@ -348,64 +348,65 @@ html.dark .markdown a:hover {
   to { transform: rotate(360deg); }
 }
 
-/* Home page — animated gradient blobs */
+/* Home page — full-screen subtle gradient wash */
 
-.home-hero {
-  position: relative;
+.home-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   overflow: hidden;
-  isolation: isolate;
 }
 
 .home-blob {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(80px);
-  opacity: 0.55;
-  z-index: -1;
+  filter: blur(120px);
+  opacity: 0.18;
   pointer-events: none;
   will-change: transform;
 }
 
 .home-blob.b1 {
-  width: 480px;
-  height: 480px;
-  top: -120px;
-  left: -120px;
-  background: radial-gradient(circle, rgba(134, 239, 172, 0.55), rgba(134, 239, 172, 0) 70%);
-  animation: blob-drift-1 18s ease-in-out infinite;
+  width: 900px;
+  height: 900px;
+  top: -250px;
+  left: -200px;
+  background: radial-gradient(circle, rgba(134, 239, 172, 0.7), rgba(134, 239, 172, 0) 70%);
+  animation: blob-drift-1 22s ease-in-out infinite;
 }
 
 .home-blob.b2 {
-  width: 420px;
-  height: 420px;
-  bottom: -120px;
-  right: -120px;
-  background: radial-gradient(circle, rgba(252, 211, 77, 0.45), rgba(252, 211, 77, 0) 70%);
-  animation: blob-drift-2 22s ease-in-out infinite;
+  width: 800px;
+  height: 800px;
+  bottom: -250px;
+  right: -200px;
+  background: radial-gradient(circle, rgba(252, 211, 77, 0.6), rgba(252, 211, 77, 0) 70%);
+  animation: blob-drift-2 26s ease-in-out infinite;
 }
 
 html.dark .home-blob {
-  opacity: 0.35;
+  opacity: 0.10;
 }
 
 html.dark .home-blob.b1 {
-  background: radial-gradient(circle, rgba(34, 197, 94, 0.5), rgba(34, 197, 94, 0) 70%);
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.7), rgba(34, 197, 94, 0) 70%);
 }
 
 html.dark .home-blob.b2 {
-  background: radial-gradient(circle, rgba(217, 119, 6, 0.4), rgba(217, 119, 6, 0) 70%);
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.6), rgba(217, 119, 6, 0) 70%);
 }
 
 @keyframes blob-drift-1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(60px, 40px) scale(1.08); }
-  66%      { transform: translate(-30px, 70px) scale(0.95); }
+  33%      { transform: translate(80px, 60px) scale(1.06); }
+  66%      { transform: translate(-40px, 100px) scale(0.96); }
 }
 
 @keyframes blob-drift-2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(-50px, -30px) scale(1.05); }
-  66%      { transform: translate(40px, -60px) scale(0.92); }
+  33%      { transform: translate(-70px, -50px) scale(1.04); }
+  66%      { transform: translate(50px, -80px) scale(0.94); }
 }
 
 @media (prefers-reduced-motion: reduce) {
