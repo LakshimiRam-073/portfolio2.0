@@ -1,4 +1,9 @@
-# System I/O - How Linux Reads and Writes Files
+---
+title: System I/O - How Linux Reads and Writes Files
+date: 2026-04-24
+description: A deep dive into how System I/O works in Linux - from file descriptors to kernel data structures, fork sharing, dup2 redirection, and pipes.
+author: Lakshimi Raman S
+---
 
 # System I/O
 
