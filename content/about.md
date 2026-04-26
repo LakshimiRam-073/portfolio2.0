@@ -1,55 +1,49 @@
-# Lakshimi Raman 
- AKA Harish Kumar
+# About
 
-## Story Time
+## The Story So Far
 
 ### The Curious 8-Year-Old
-Harish likes to understand how things work. When he was little(8 YO) he tried to understand how an RC car worked and tried to rip apart every thing and finally found the motor, batteries, wires. Little did he know when he removed those wires, the car stopped working. Said "Oh no.." and got worried that his mother would scold him. Then said "Okay Let's fix this" and tried to reassemble the whole car back to the original, and wondering in his mind "How these things works?".
+I've always needed to know how things work. At eight, I tore apart an RC car just to find the motor, the batteries, the wires — and then panicked when it stopped working. I put it back together piece by piece, half terrified my mother would find out, half fascinated by the question I couldn't shake: *how does any of this actually work?*
 
-### First Computer Love
-Harish grew.... Now he's 12 now.
-
-And Harish mother(a CS Teacher) bought a computer. Guess what he loved it. And he sat in the monitor for hours playing games(Prince of persia, GTA, Assassin's creed, Total overdose, Just cause 3). But he always wonders and asks silly questions like "Why some Fan is spinning when we turn on the computer?", "How the CPU is working?", "What is RAM? why does we need so much to download this game? How much of RAM does my computer have?", "What is a GPU and why it is a must to play this game?"...... And he always tries to search answers over the internet.
+### First Computer
+At twelve, my mother — a CS teacher — brought home a computer. I was hooked instantly. Hours disappeared into Prince of Persia, GTA, Assassin's Creed. But between the games, the questions kept coming: Why does a fan spin when I turn this on? What is RAM, and why do I need more of it? What's a GPU, and why won't this game run without one? I searched for every answer I could find.
 
 ### When the PC Died
-Later his computer broke ;-(, He tried everything he possibly could, but couldn’t fix it. His mom then called professionals to repair it, he sat there and watched the professionals do the work. And finally they replaced the system with a better one(Windows XP -> Windows 7). At the time he was so little, he couldn't understand and but he still tried.
+One day the machine broke. I tried everything I knew — which wasn't much — but couldn't fix it. When my mother called in professionals, I sat right there and watched every step. They swapped the whole system out (XP → Windows 7). I was too young to follow most of it, but I tried anyway.
 
-### Stream Selection Drama
-Now he's 16 wanted to take CS stream in school. But he was forced(Not by marks, didn't wanted to talk about that) to take Math-Bio stream, still he likes physics and curious to know how semiconductors work.
+### The Detour
+At sixteen I wanted the CS stream, but circumstances pushed me into Math-Bio. I didn't fight it. I still had physics, and semiconductors were fascinating enough to keep the curiosity alive.
 
 ### Electronics in College
-These questions and curiosity brings him to take Electronics in college(Tier 2), where he learnt many things like Microcontroller, CPU, RAM ,etcc.... And kept wondering "How these guys are inventing those things?". And wondered how they are connecting and contacting them with Software?. And he practiced coding to know how the software was communicating with hardware. 
+That curiosity led me to Electronics Engineering. Microcontrollers, CPUs, memory architectures — I finally got to peek inside the hardware I'd been wondering about for years. And then a new question appeared: *how does software actually talk to all of this?* I started writing code to find out.
 
-### Friends’ “Helpful” Advice
-He wanted to learn how machines are communicating, How network works, Their actual internals. But when harish said to his friends they said "That’s only for people in Tier 1 colleges". Harish was sad. But never stopped learning.
+### "That's Not for You"
+I wanted to learn how machines communicate, how networks really work, the actual internals. When I told my friends, they said that kind of stuff is only for people in top-tier colleges. That stung. But it didn't stop me.
 
 ### Becoming a DBA
-Then later he joined a Product company when he was 20, where he is a DBA(Database Administrator) Now he wonders how such massive amounts of data are handled, how systems manage so much load, and how they scale to handle large traffic (system design).
+At twenty I joined a product company as a Database Administrator. Suddenly I was staring at a new set of questions: How do systems handle this much data? How do they stay up under real load? How do they scale?
 
-### The “Screw That” Attitude
-Does harish think he can’t create or understand all these internals?
-No, Screw those thoughts.
- 
-He still tries to learn things in Low level and system wide level. He didn't care about others think or how they laugh at him. If he wants to learn any technology, he goes all in — learning every concept and even ripping apart the source code to understand how it really works.
+### The Attitude
+Do I think I can't understand these internals? No. Screw that thought.
 
-Harish idealogy is simple: "It's just our mind stopping us".
+When I want to learn something, I go all in — every concept, every layer, ripping apart the source code if I have to. It's just our mind stopping us.
 
-And this guy? He still hasn’t stopped asking questions. What a silly fellow he is.
+And I still haven't stopped asking questions.
 
+---
 
 ## Core Interests
-Harish likes Distributed systems, databases, and scalable architectures that hold under real-world pressure.
+Distributed systems, databases, and scalable architectures that hold under real-world pressure.
 
-## Dream
-Harish wants to build a distributed database from scratch with a focus on reliability, availability, and fault tolerance.
+## The Dream
+To build a distributed database from scratch — focused on reliability, availability, and fault tolerance.
 
 ## Engineering Mindset
-Low-level first: memory, storage, execution — understand by recreating systems from the ground up.
+Low-level first: memory, storage, execution. Understand by recreating systems from the ground up.
 
 ## Writing
-Harish loves to write technical deep-dives on system design, databases, and practical engineering challenges.
+Technical deep-dives on system design, databases, and practical engineering challenges — that's what this site is for.
 
-## Social
+## Find Me
 - GitHub: [LakshimiRam-073](https://github.com/LakshimiRam-073)
-- LinkedIn: [Lakshimi Raman](https://www.linkedin.com/in/lakshimi-raman-s-b576b4240?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app)
-<!-- - Instagram: [@yourhandle](https://instagram.com/yourhandle) -->
+- LinkedIn: [LinkedIn Profile](https://www.linkedin.com/in/lakshimi-raman-s-b576b4240)
