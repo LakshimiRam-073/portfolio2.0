@@ -72,11 +72,8 @@ export default function Home() {
             className="home-fade-up mt-6 text-base sm:text-lg text-gray-600 dark:text-stone-400 font-sans max-w-xl mx-auto leading-relaxed"
             style={{ animationDelay: '240ms' }}
           >
-            Hi, I'm{' '}
-            <span className="text-gray-900 dark:text-stone-100 font-medium">
-              Lakshimi Raman S
-            </span>{' '}
-            — writing about databases, systems, and what actually runs the world.
+            Just someone curious about how things work under the hood — writing
+            deep dives on databases, systems, and the internals that run the world.
           </p>
         </div>
       </section>
