@@ -50,25 +50,37 @@ async function resolveChrome() {
   return { executablePath, extraArgs: chromium.args }
 }
 
-// puppeteer.launch() fails to handshake with recent Chrome on some macOS setups,
-// so spawn Chrome ourselves with a debugging port and connect over the WS endpoint.
+const BASE_CHROME_ARGS = [
+  '--headless=new',
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-gpu',
+  '--disable-dev-shm-usage',
+]
+
+/**
+ * On Linux (Vercel CI) puppeteer.launch() works reliably and is what the
+ * serverless-chromium build expects. On macOS launch() often fails to hand
+ * shake with recent Chrome, so there we spawn Chrome ourselves with a remote
+ * debugging port and connect over the WS endpoint it prints.
+ */
 async function launchBrowser() {
   const { executablePath, extraArgs } = await resolveChrome()
+  const args = Array.from(new Set([...BASE_CHROME_ARGS, ...extraArgs]))
+
+  if (process.platform !== 'darwin') {
+    const browser = await puppeteer.launch({
+      executablePath,
+      args,
+      headless: true,
+    })
+    return { browser, chrome: null, userDataDir: null }
+  }
+
+  // macOS: spawn + connect fallback.
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'prerender-chrome-'))
-  const baseArgs = [
-    '--headless=new',
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-gpu',
-    '--disable-dev-shm-usage',
-    '--remote-debugging-port=0',
-    `--user-data-dir=${userDataDir}`,
-  ]
-  // Merge serverless-chromium args (dedup), keep about:blank last.
-  const merged = Array.from(new Set([...baseArgs, ...extraArgs])).filter(
-    (a) => !a.startsWith('--user-data-dir') || a === `--user-data-dir=${userDataDir}`
-  )
-  const chrome = spawn(executablePath, [...merged, 'about:blank'], {
+  const spawnArgs = [...args, '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`]
+  const chrome = spawn(executablePath, [...spawnArgs, 'about:blank'], {
     stdio: ['ignore', 'ignore', 'pipe'],
   })
 
@@ -77,7 +89,7 @@ async function launchBrowser() {
     const timer = setTimeout(() => {
       chrome.kill()
       reject(new Error('Chrome did not expose a debugging endpoint in time'))
-    }, 15000)
+    }, 30000)
 
     chrome.stderr.on('data', async (d) => {
       buf += d.toString()
@@ -204,12 +216,20 @@ async function run() {
       await page.close()
     }
   } finally {
-    await browser.disconnect()
-    chrome.kill()
+    if (chrome) {
+      // Spawn+connect path (macOS): disconnect, kill the process we started.
+      await browser.disconnect().catch(() => {})
+      chrome.kill()
+    } else {
+      // launch() path (Linux/CI): close the browser puppeteer owns.
+      await browser.close().catch(() => {})
+    }
     server.close()
-    try {
-      fs.rmSync(userDataDir, { recursive: true, force: true })
-    } catch {}
+    if (userDataDir) {
+      try {
+        fs.rmSync(userDataDir, { recursive: true, force: true })
+      } catch {}
+    }
   }
 
   console.log('  [prerender] done')
