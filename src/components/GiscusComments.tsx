@@ -2,8 +2,8 @@ import Giscus from '@giscus/react'
 
 export default function GiscusComments() {
   return (
-    <div className="mt-16 pt-10 border-t border-neutral-800">
-      <h2 className="text-2xl font-bold mb-6 font-sans text-neutral-100">
+    <div className="mt-16 pt-10 border-t border-[#2a2a2a]">
+      <h2 className="text-2xl font-bold mb-6 font-sans text-[#e6e6e6]">
         Comments
       </h2>
       <Giscus
@@ -26,7 +26,7 @@ export default function GiscusComments() {
           href="https://giscus.app"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-neutral-100"
+          className="underline hover:text-[#e6e6e6]"
         >
           Giscus
         </a>

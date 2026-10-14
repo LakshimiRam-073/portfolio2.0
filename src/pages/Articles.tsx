@@ -68,7 +68,7 @@ function ArticleCard({ article }: { article: FlatArticle }) {
           {categoryName.replace(/-/g, ' ')}
         </span>
 
-        <h2 className="text-xl sm:text-2xl font-bold text-neutral-100 mb-2 group-hover:text-neutral-400 transition-colors leading-tight font-sans">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#e6e6e6] mb-2 group-hover:text-neutral-400 transition-colors leading-tight font-sans">
           {blog.metadata.title}
         </h2>
 
@@ -194,7 +194,7 @@ export default function Articles() {
                 placeholder="Search articles by title, description, or topic..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-600/50 focus:border-neutral-500 transition-colors text-sm font-sans"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] text-[#e6e6e6] placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#444]/50 focus:border-[#555] transition-colors text-sm font-sans"
               />
             </div>
 
@@ -211,8 +211,8 @@ export default function Articles() {
                   }
                   className={`text-xs px-3 py-1 rounded-full font-medium transition-colors font-sans ${
                     selectedCategory === name
-                      ? 'bg-neutral-100 text-black'
-                      : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
+                      ? 'bg-[#e6e6e6] text-[#121212]'
+                      : 'bg-[#1a1a1a] text-[#c4c4c4] hover:bg-[#242424]'
                   }`}
                 >
                   {name.replace(/-/g, ' ')}
@@ -228,7 +228,7 @@ export default function Articles() {
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="text-sm text-neutral-300 hover:text-neutral-100 hover:underline font-medium font-sans"
+                  className="text-sm text-neutral-300 hover:text-[#e6e6e6] hover:underline font-medium font-sans"
                 >
                   Clear filters
                 </button>
@@ -239,7 +239,7 @@ export default function Articles() {
 
         {loading ? (
           <div className="py-16 flex justify-center">
-            <div className="w-6 h-6 border-2 border-neutral-700 border-t-neutral-100 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#333] border-t-[#e6e6e6] rounded-full animate-spin" />
           </div>
         ) : filteredArticles.length === 0 ? (
           <div className="text-center py-16">
@@ -251,14 +251,14 @@ export default function Articles() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="text-neutral-300 hover:text-neutral-100 hover:underline font-medium"
+                className="text-neutral-300 hover:text-[#e6e6e6] hover:underline font-medium"
               >
                 Clear filters
               </button>
             )}
           </div>
         ) : (
-          <div className="divide-y divide-neutral-800">
+          <div className="divide-y divide-[#2a2a2a]">
             {filteredArticles.map((article) => (
               <ArticleCard
                 key={`${article.categoryPath}/${article.blog.slug}`}

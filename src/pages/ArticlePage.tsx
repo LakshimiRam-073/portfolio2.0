@@ -62,7 +62,7 @@ export default function ArticlePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-neutral-700 border-t-neutral-100 rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#333] border-t-[#e6e6e6] rounded-full animate-spin" />
       </div>
     )
   }
@@ -76,7 +76,7 @@ export default function ArticlePage() {
         </p>
         <Link
           to="/articles"
-          className="text-neutral-300 hover:text-neutral-100 hover:underline font-medium"
+          className="text-neutral-300 hover:text-[#e6e6e6] hover:underline font-medium"
         >
           ← Back to Articles
         </Link>
@@ -115,7 +115,7 @@ export default function ArticlePage() {
           <div className="mb-10">
             <Link
               to="/articles"
-              className="text-sm font-medium text-neutral-400 hover:text-neutral-100 transition-colors inline-flex items-center gap-1.5 mb-6 font-sans no-underline"
+              className="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 mb-6 font-sans no-underline"
             >
               ← Back to Articles
             </Link>
@@ -126,7 +126,7 @@ export default function ArticlePage() {
               </span>
             )}
 
-            <h1 className="text-3xl sm:text-4xl md:text-[2.625rem] font-bold tracking-tight mb-4 leading-tight font-display text-neutral-100">
+            <h1 className="text-3xl sm:text-4xl md:text-[2.625rem] font-bold tracking-tight mb-4 leading-tight font-display text-[#e6e6e6]">
               {post.metadata.title}
             </h1>
 
@@ -150,7 +150,7 @@ export default function ArticlePage() {
           </div>
 
           {post.metadata.description && (
-            <p className="text-lg md:text-xl leading-relaxed text-neutral-400 mb-10 border-l-[3px] border-neutral-800 pl-5 py-1">
+            <p className="text-lg md:text-xl leading-relaxed text-neutral-400 mb-10 border-l-[3px] border-[#2a2a2a] pl-5 py-1">
               {post.metadata.description}
             </p>
           )}
@@ -165,10 +165,10 @@ export default function ArticlePage() {
           {/* Comments */}
           <GiscusComments />
 
-          <div className="mt-16 pt-10 border-t border-neutral-800">
+          <div className="mt-16 pt-10 border-t border-[#2a2a2a]">
             <Link
               to="/articles"
-              className="text-sm font-medium text-neutral-400 hover:text-neutral-100 transition-colors inline-flex items-center gap-1.5 font-sans no-underline"
+              className="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 font-sans no-underline"
             >
               ← Back to Articles
             </Link>

@@ -42,11 +42,11 @@ function ResourceRow({ item }: { item: ResourceItem }) {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block py-3 px-4 -mx-4 rounded-lg hover:bg-neutral-900 transition-colors"
+      className="group block py-3 px-4 -mx-4 rounded-lg hover:bg-[#1e1e1e] transition-colors"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-neutral-100 group-hover:text-neutral-300 transition-colors font-sans inline-flex items-center gap-1.5">
+          <h3 className="text-base font-semibold text-[#e6e6e6] group-hover:text-neutral-300 transition-colors font-sans inline-flex items-center gap-1.5">
             <span>{item.title}</span>
             <ExternalIcon />
           </h3>
@@ -57,7 +57,7 @@ function ResourceRow({ item }: { item: ResourceItem }) {
           )}
         </div>
         {item.source && (
-          <span className="shrink-0 mt-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-neutral-900 text-neutral-400 border border-neutral-800">
+          <span className="shrink-0 mt-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#1a1a1a] text-neutral-400 border border-[#2a2a2a]">
             {item.source}
           </span>
         )}
@@ -140,7 +140,7 @@ export default function Resources() {
                 placeholder="Search resources by title, source, or topic..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-600/50 focus:border-neutral-500 transition-colors text-sm font-sans"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] text-[#e6e6e6] placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#444]/50 focus:border-[#555] transition-colors text-sm font-sans"
               />
             </div>
             {isFiltering && (
@@ -153,7 +153,7 @@ export default function Resources() {
 
         {loading ? (
           <div className="py-16 flex justify-center">
-            <div className="w-6 h-6 border-2 border-neutral-700 border-t-neutral-100 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#333] border-t-[#e6e6e6] rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
@@ -167,14 +167,14 @@ export default function Resources() {
               <details
                 key={cat.name}
                 open={isFiltering || idx === 0}
-                className="group rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden"
+                className="group rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] overflow-hidden"
               >
-                <summary className="flex items-center justify-between cursor-pointer select-none px-5 py-4 hover:bg-neutral-900 transition-colors list-none">
+                <summary className="flex items-center justify-between cursor-pointer select-none px-5 py-4 hover:bg-[#1e1e1e] transition-colors list-none">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold font-sans text-neutral-100">
+                    <h2 className="text-lg font-semibold font-sans text-[#e6e6e6]">
                       {cat.name}
                     </h2>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-neutral-900 text-neutral-400">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[#1a1a1a] text-neutral-400">
                       {cat.items.length}
                     </span>
                   </div>
@@ -192,7 +192,7 @@ export default function Resources() {
                     />
                   </svg>
                 </summary>
-                <div className="px-5 pb-3 border-t border-neutral-800">
+                <div className="px-5 pb-3 border-t border-[#2a2a2a]">
                   {cat.items.map((item) => (
                     <ResourceRow key={item.url} item={item} />
                   ))}

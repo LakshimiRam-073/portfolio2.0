@@ -108,7 +108,7 @@ async function launchBrowser() {
   })
 }
 
-const BASE_ROUTES = ['/', '/about', '/articles', '/resources']
+const BASE_ROUTES = ['/', '/about', '/articles', '/resources', '/ai-conduct']
 
 function collectArticleRoutes() {
   const categoriesPath = path.join(DIST, 'data', 'categories.json')

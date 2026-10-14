@@ -5,11 +5,12 @@ import About from '@/pages/About'
 import Articles from '@/pages/Articles'
 import ArticlePage from '@/pages/ArticlePage'
 import Resources from '@/pages/Resources'
+import AiConduct from '@/pages/AiConduct'
 import NotFound from '@/pages/NotFound'
 
 export default function App() {
   return (
-    <div className="bg-black text-neutral-100 antialiased min-h-screen flex flex-col">
+    <div className="bg-[#121212] text-[#e6e6e6] antialiased min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
         <Routes>
@@ -18,10 +19,11 @@ export default function App() {
           <Route path="/articles" element={<Articles />} />
           <Route path="/articles/*" element={<ArticlePage />} />
           <Route path="/resources" element={<Resources />} />
+          <Route path="/ai-conduct" element={<AiConduct />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <footer className="border-t border-neutral-900 bg-black py-8 mt-12">
+      <footer className="border-t border-[#222] bg-[#121212] py-8 mt-12">
         <div className="max-w-4xl mx-auto px-6 text-center text-neutral-500 text-sm">
           <p>&copy; 2026. All rights reserved.</p>
         </div>

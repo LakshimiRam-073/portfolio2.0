@@ -18,12 +18,12 @@ function NavCard({
   return (
     <Link
       to={to}
-      className="group relative block rounded-xl border border-neutral-800 bg-black p-6 hover:border-neutral-600 transition-colors duration-200"
+      className="group relative block rounded-xl border border-[#2a2a2a] bg-[#121212] p-6 hover:border-[#444] transition-colors duration-200"
     >
       <div className="text-3xl mb-3">
         {glyph}
       </div>
-      <h3 className="text-lg font-semibold text-neutral-100 mb-1 font-sans">
+      <h3 className="text-lg font-semibold text-[#e6e6e6] mb-1 font-sans">
         {title}
       </h3>
       <p className="text-sm text-neutral-400 leading-relaxed">
@@ -61,7 +61,7 @@ export default function Home() {
             stupidnotes.in
           </p>
 
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold not-italic font-sans text-neutral-100 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold not-italic font-sans text-[#e6e6e6] tracking-tight">
             {tagline}
           </h1>
 

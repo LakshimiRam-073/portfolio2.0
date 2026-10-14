@@ -290,6 +290,20 @@ async function build() {
   )
   console.log('  about.json written')
 
+  // Process AI Code of Conduct page
+  let aiConductContent = '# AI Code of Conduct\n\nContent coming soon.'
+  const aiConductPath = path.join(CONTENT_DIR, 'ai-conduct.md')
+  if (fs.existsSync(aiConductPath)) {
+    aiConductContent = fs.readFileSync(aiConductPath, 'utf8')
+  }
+  const aiConductHtml = await processMarkdown(aiConductContent)
+  fs.writeFileSync(
+    path.join(DATA_DIR, 'ai-conduct.json'),
+    JSON.stringify({ htmlContent: aiConductHtml })
+  )
+  console.log('  ai-conduct.json written')
+  sitemapUrls.push('/ai-conduct')
+
   // Process resources
   const resources = buildResources()
   fs.writeFileSync(
