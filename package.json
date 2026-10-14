@@ -10,6 +10,7 @@
     "postbuild": "node scripts/prerender-routes.mjs",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "serve:dist": "node scripts/serve-dist.mjs",
+    "predeploy-check": "node scripts/predeploy.mjs",
     "type-check": "node node_modules/typescript/bin/tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,md,css}\"",
     "clean": "rm -rf dist node_modules public/data public/sitemap.xml"

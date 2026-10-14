@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Sitemap: https://stupidnotes.in/sitemap.xml
+
+# Disallow bot access to certain paths if needed
+# Disallow: /admin/
+# Disallow: /private/

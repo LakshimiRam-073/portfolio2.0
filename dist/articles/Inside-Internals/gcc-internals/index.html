@@ -1,0 +1,359 @@
+<!DOCTYPE html><html lang="en" class="dark" style="background-color:#121212"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How GCC Compiler Works | Stupid Notes</title>
+    <meta name="description" content="Deep-dive technical articles on databases, system design, and low-level engineering.">
+    <!-- Per-page OG/Twitter tags are injected by react-helmet-async and baked in at
+         prerender time. Keep none here to avoid duplicate/stale tags for crawlers. -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <script type="module" crossorigin="" src="/assets/index-Tc-Mr3sO.js"></script>
+    <link rel="stylesheet" crossorigin="" href="/assets/index-CmaudYtK.css">
+  <meta property="og:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta property="og:site_name" content="Stupid Notes" data-rh="true"><meta name="twitter:card" content="summary_large_image" data-rh="true"><meta name="twitter:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta name="description" content="A detailed walkthrough of how the GCC compiler converts your C code into an executable binary — from preprocessor to linker, multi-language projects, and the ABI." data-rh="true"><meta property="og:title" content="How GCC Compiler Works" data-rh="true"><meta property="og:description" content="A detailed walkthrough of how the GCC compiler converts your C code into an executable binary — from preprocessor to linker, multi-language projects, and the ABI." data-rh="true"><meta property="og:type" content="article" data-rh="true"><meta property="og:url" content="https://stupidnotes.in/articles/Inside-Internals/gcc-internals" data-rh="true"><meta name="twitter:title" content="How GCC Compiler Works" data-rh="true"><meta name="twitter:description" content="A detailed walkthrough of how the GCC compiler converts your C code into an executable binary — from preprocessor to linker, multi-language projects, and the ABI." data-rh="true"><meta property="article:published_time" content="2026-04-11" data-rh="true"></head>
+  <body>
+    <div id="root"><div class="bg-[#121212] text-[#e6e6e6] antialiased min-h-screen flex flex-col"><header class="sticky top-0 z-40 bg-[#121212]/80 backdrop-blur-md border-b border-[#222]"><nav class="max-w-[1100px] w-full mx-auto px-8 py-4 flex justify-between items-center max-md:px-6 max-sm:px-4"><a class="text-base font-medium text-[#e6e6e6] hover:opacity-70 transition-opacity font-sans" href="/">stupidnotes.in</a><div class="flex gap-5 items-center text-sm font-sans"><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/about">About</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/articles">Articles</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/resources">Resources</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/ai-conduct">AI Conduct</a></div></nav></header><main class="flex-1"><div class="blog-container min-h-screen py-12 md:py-16"><article class="markdown"><div class="mb-10"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 mb-6 font-sans no-underline" href="/articles">← Back to Articles</a><span class="block text-xs font-medium uppercase tracking-wider text-neutral-300 mb-3 font-sans">Inside Internals</span><h1 class="text-3xl sm:text-4xl md:text-[2.625rem] font-bold tracking-tight mb-4 leading-tight font-display text-[#e6e6e6]">How GCC Compiler Works</h1><div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-neutral-400 text-sm font-sans"><span>Lakshimi Raman S</span><span>·</span><time datetime="2026-04-11">Apr 11, 2026</time><span>·</span><span>19 min read</span></div></div><p class="text-lg md:text-xl leading-relaxed text-neutral-400 mb-10 border-l-[3px] border-[#2a2a2a] pl-5 py-1">A detailed walkthrough of how the GCC compiler converts your C code into an executable binary — from preprocessor to linker, multi-language projects, and the ABI.</p><div class="max-w-none">
+<h1>The Journey from Code to Binary</h1>
+<hr>
+<p>Have you ever wondered what actually happens when you hit that compile button or run <code>gcc main.c</code>? Like, your C code magically becomes a binary that the machine can run. But it's not magic at all  there's a whole pipeline of steps that your code goes through before it becomes an executable.</p>
+<p>And trust me, once you understand this pipeline, you'll look at compilation very differently. It gives you so much power to manipulate and combine things. Let's break it down.</p>
+<p>Friendly Note: This is not a textbook explaination. It's how I understand it, so it may have some of my own ideas mixed in.</p>
+<h2>Two Types of Programming Languages</h2>
+<p>Before we jump into GCC, let's quickly talk about the two types of programming languages out there.</p>
+<ol>
+<li>
+<p><strong>Compiled Languages</strong></p>
+<p>These are the languages where the source code is fully converted into machine code (binary) before you run it. The compilation happens once, and then you can run the binary as many times as you want without recompiling.</p>
+<p>Examples: C, C++, Go, Rust, and Java (well, Java is a bit special  it compiles to bytecode, not directly to machine code, but let's not go there for now).</p>
+</li>
+<li>
+<p><strong>Interpreted Languages</strong></p>
+<p>These are the languages where the code is read and executed line by line at runtime. There's no separate compilation step  the interpreter does the job on the fly.</p>
+<p>Examples: Python, JavaScript, and most scripting languages.</p>
+</li>
+</ol>
+<p>The key difference? Compiled languages go through this whole compilation pipeline we're about to discuss. Interpreted languages skip most of it and just execute directly through an interpreter.</p>
+<p>For this blog, we're going to focus on compiled languages  specifically C with the GCC compiler.</p>
+<h2>What is GCC?</h2>
+<p>GCC originally stood for <strong>GNU C Compiler</strong>  because it was built to compile C code. But over time it evolved to support C++, Fortran, Go, and other languages. So now it stands for <strong>GNU Compiler Collection</strong>.</p>
+<p>But the core idea remains the same  it takes your source code and converts it into an executable binary. The thing is, it doesn't do it in one shot. It won't just magically convert your C code into machine code directly.</p>
+<p>It actually goes through a step-by-step process to compile. And at the final result, we can able to get an executable.</p>
+<p>How these things are getting processed? Let's see.</p>
+<h2>Steps to go for an Executable</h2>
+<hr>
+<p>This is the main part. When you compile a C program, it goes through <strong>4 stages</strong>:</p>
+<ol>
+<li><strong>Preprocessor</strong></li>
+<li><strong>Compiler</strong></li>
+<li><strong>Assembler</strong></li>
+<li><strong>Linker</strong></li>
+</ol>
+<p>Each stage takes an input, does its job, and produces an output that feeds into the next stage. Think of it like a factory assembly line  raw material goes in one end, and a finished product comes out the other.</p>
+<p><img src="/assets/x2TMbTviuZtO4eEKXyX_wEtusTpvQYo42V_TuTaVc5w=.png" alt="Compiler pipeline"></p>
+<p>Let me walk you through each one.</p>
+<h3>Preprocessor</h3>
+<p>The preprocessor is the first guy in the pipeline. Your <code>main.c</code> goes through the preprocessor, and it does some pretty important housekeeping stuff:</p>
+<ol>
+<li><strong>Removing the comments</strong> : All your <code>//</code> and <code>/* */</code> comments? Gone. The machine doesn't care about your "TODO: fix this later" notes. Poofff...</li>
+<li><strong>Expanding the macros</strong> : If you have <code>#define MAX 100</code>, every occurrence of <code>MAX</code> in your code gets replaced with <code>100</code>. Simple text substitution.</li>
+<li><strong>Replacing the header files with their content</strong> : When you write <code>#include &lt;stdio.h&gt;</code>, the preprocessor literally takes the entire content of <code>stdio.h</code> and pastes it into your file. Yeah, that one line becomes thousands of lines.</li>
+</ol>
+<p>And finally it gives you a fully structured C code with no comments, all macros expanded, and all headers included. It's still C code -just a clean, expanded version of it.</p>
+<p>The output file will be <code>main.i</code>.</p>
+<p>You can actually see this yourself by running:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">gcc</span><span style="color:#6CB6FF"> -E</span><span style="color:#96D0FF"> main.c</span><span style="color:#6CB6FF"> -o</span><span style="color:#96D0FF"> main.i</span></span>
+<span class="line"></span></code></pre>
+<p>The <code>-E</code> flag tells GCC to stop after preprocessing. Go ahead and open that <code>main.i</code> file , you'll be surprised how big it is. A simple "Hello World" program becomes thousands of lines after the preprocessor includes all the header content. Pretty crazy right?</p>
+<h3>Compiler</h3>
+<p>Now here comes the real deal. The compiler takes the preprocessed file <code>main.i</code> and does the actual heavy lifting.</p>
+<p>But wait, it doesn't change it directly to machine code. A lot of people think the "compiler" step produces the final binary. Nope. It first changes it into another human readable form called <strong>assembly</strong>.</p>
+<p>So what exactly does the compiler do?</p>
+<ol>
+<li><strong>Syntax checking</strong> :c It checks your code to make sure there are no syntax errors or issues. Missing semicolons, wrong types, undeclared variables , all of that gets caught here.</li>
+<li><strong>Semantic analysis</strong> : Beyond syntax, it also checks if what you're doing makes logical sense. Like, are you trying to add an integer to a string? That's a semantic error.</li>
+<li><strong>Optimization</strong> : The compiler is smart. It will try to optimize your code to make it run faster or use less memory. There are different levels of optimization (<code>-O1</code>, <code>-O2</code>, <code>-O3</code>) that you can control.</li>
+<li><strong>Code generation</strong> : Finally, it generates the assembly code. This is a human-readable form of instructions that are specific to your CPU architecture.</li>
+</ol>
+<p>The output will be <code>main.s</code> : an assembly file.</p>
+<p>You can generate just the assembly by running:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">gcc</span><span style="color:#6CB6FF"> -S</span><span style="color:#96D0FF"> main.c</span><span style="color:#6CB6FF"> -o</span><span style="color:#96D0FF"> main.s</span></span>
+<span class="line"></span></code></pre>
+<p>The assembly code looks something like this (for x86):</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span>    .text</span></span>
+<span class="line"><span>    .globl main</span></span>
+<span class="line"><span>main:</span></span>
+<span class="line"><span>    pushq   %rbp</span></span>
+<span class="line"><span>    movq    %rsp, %rbp</span></span>
+<span class="line"><span>    movl    $0, %eax</span></span>
+<span class="line"><span>    popq    %rbp</span></span>
+<span class="line"><span>    ret</span></span>
+<span class="line"><span></span></span></code></pre>
+<p>I know it looks scary, but it's actually a specific set of instructions that the CPU understands in a human-readable way. Each line is an instruction , push something to the stack, move something to a register, return from the function. That's it.</p>
+<p>The point is, the compiler converts your high-level C code into this low-level assembly language that is closer to what the machine actually executes. But it's still not machine code yet.</p>
+<h3>Assembler</h3>
+<p>This is the actual part where the code transforms into something the machine can read. The assembler takes the <code>main.s</code> assembly file and converts it into <strong>machine code</strong> , actual binary instructions that the CPU can execute.</p>
+<p>The output is called an <strong>object file</strong>  <code>main.o</code>.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">gcc</span><span style="color:#6CB6FF"> -c</span><span style="color:#96D0FF"> main.c</span><span style="color:#6CB6FF"> -o</span><span style="color:#96D0FF"> main.o</span></span>
+<span class="line"></span></code></pre>
+<p>This is the core of every program. The object file contains the raw machine code for YOUR code. But here's the thing, it's not yet a complete executable. Why?</p>
+<p>Because your code probably uses functions from standard libraries. Like <code>printf</code> from <code>stdio.h</code>. The object file has your code compiled, but it doesn't have the actual implementation of <code>printf</code> in it. It just has a reference saying "hey, I need this function from somewhere."</p>
+<p>That's where the next stage comes in.</p>
+<blockquote>
+<p><strong>Think of it this way:</strong> The object file is like a puzzle piece. It's a complete piece on its own, but it needs other pieces (libraries) to form the full picture.</p>
+</blockquote>
+<h3>Linker</h3>
+<p>The linker is the final boss. This is where everything comes together.</p>
+<p>When you compile your C program and you get the object file, you still need the standard library files. Like, you use <code>stdio.h</code> for <code>printf</code>, right? So where does the actual code for <code>printf</code> come from?</p>
+<p>The linker takes your object file and <strong>links</strong> it with the required library files to produce the final executable binary.</p>
+<p>But here's the interesting part, there are <strong>2 types of linking</strong>:</p>
+<h4>Static Linking</h4>
+<p>In static linking, the standard library code is <strong>directly copied</strong> into your executable binary. Like, literally pasted in. Wherever <code>printf</code> is called, the actual implementation of <code>printf</code> from the standard library <code>.a</code> file gets embedded into your binary.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">Your</span><span style="color:#DCBDFB"> code</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">main</span><span style="color:#ADBAC7">.</span><span style="color:#F69D50">o</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">+</span><span style="color:#ADBAC7"> Library </span><span style="color:#DCBDFB">code</span><span style="color:#ADBAC7"> (libc.a) </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> One big executable binary</span></span>
+<span class="line"></span></code></pre>
+<p>Sounds simple right? But there's a problem.</p>
+<p>If you have multiple programs on your system and all of them use <code>printf</code>, each one will have its <strong>own copy</strong> of <code>printf</code> inside their binary. That's a lot of duplicated code sitting on your disk and in memory.</p>
+<p>And the binary size? It becomes huge. Because you're carrying all the library code inside your executable. If you depend on having a binary which will always have heavy dependency on standard libraries, static linking will not be a good option.</p>
+<p><strong>Pros:</strong></p>
+<ul>
+<li>Self-contained binary, you can run it anywhere without worrying about library versions</li>
+<li>No runtime dependency issues</li>
+<li>Slightly faster at runtime (no need to look up library functions)</li>
+</ul>
+<p><strong>Cons:</strong></p>
+<ul>
+<li>Larger binary size</li>
+<li>Duplicated code across multiple programs</li>
+<li>If a library has a security fix, you need to recompile everything</li>
+</ul>
+<h4>Dynamic Linking</h4>
+<p>Dynamic linking is the smarter approach. Instead of copying the library code into your binary, it just stores a <strong>reference</strong> (address) to the standard library.</p>
+<p>So when your program runs and needs <code>printf</code>, it will just ask the OS , "Hey, load this standard library into my process memory and link it for me." The OS loads the shared library (<code>.so</code> file on Linux, <code>.dll</code> on Windows) into the address space of the process, and it will be linked together at runtime.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">Your</span><span style="color:#DCBDFB"> code</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">main</span><span style="color:#ADBAC7">.</span><span style="color:#F69D50">o</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">+</span><span style="color:#ADBAC7"> Reference to </span><span style="color:#DCBDFB">library</span><span style="color:#ADBAC7"> (libc.so) </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> Small executable binary</span></span>
+<span class="line"></span></code></pre>
+<p>The beauty of this is that multiple programs can <strong>share the same library</strong> in memory. If 10 programs need <code>printf</code>, the OS loads <code>libc.so</code> once and all 10 programs share it. Memory saved. Disk space saved. Everyone's happy.</p>
+<p><strong>Pros:</strong></p>
+<ul>
+<li>Smaller binary size</li>
+<li>Shared libraries in memory , efficient</li>
+<li>Library updates don't require recompilation</li>
+</ul>
+<p><strong>Cons:</strong></p>
+<ul>
+<li>Runtime dependency, if the shared library is missing or a different version, your program crashes</li>
+<li>Slightly slower at startup (need to resolve library addresses)</li>
+</ul>
+<p>Most modern systems use dynamic linking by default. That's why you sometimes see errors like "shared library not found", it's because the linker expected a <code>.so</code> file at runtime and couldn't find it.</p>
+<blockquote>
+<p><strong>Crazy Fact:</strong> On Linux, you can check which shared libraries a binary depends on using the <code>ldd</code> command. Try <code>ldd /bin/ls</code> and see how many libraries even a simple <code>ls</code> command needs!</p>
+</blockquote>
+<hr>
+<p>So that's the full pipeline. Your <code>main.c</code> goes through:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">main.c -&gt; Preprocessor -&gt; main.i -&gt; Compiler -&gt; main.s -&gt; Assembler -&gt; main.o -&gt; Linker -&gt; executable binary</span></span>
+<span class="line"></span></code></pre>
+<p>Each step takes the output of the previous step and transforms it further until you get the final executable. Pretty elegant right?</p>
+<h2>Multi-Language Projects</h2>
+<hr>
+<p>Ok so this is where it gets really interesting. You often see in real projects, there will be <strong>multiple languages</strong> combined together. Like you can see assembly and C, or C and Rust, connecting more languages into one project.</p>
+<p>How can they do it? How will they do it?</p>
+<p>It's actually simpler than you think. And the secret lies in that compilation pipeline we just discussed.</p>
+<h3>Breaking Down the Pipeline</h3>
+<p>Remember those 4 stages, preprocessor, compiler, assembler, linker? Here's the cool part: <strong>you can stop at any intermediate step</strong>.</p>
+<p>You don't have to run the full pipeline in one shot. You can stop before the assembler, or stop before the linker. You can take the intermediate output and do whatever you want with it.</p>
+<p>This is the key insight. These compilation steps can be broken down into parts, and you can manipulate them at your will.</p>
+<h3>The Add Function Example</h3>
+<p>Let me give you a practical example. Let's say we want to add two numbers with an <code>add</code> function.</p>
+<p>Here's the plan:</p>
+<ul>
+<li>I will implement the <code>add</code> function in <strong>assembly code</strong></li>
+<li>I will write the main logic and everything else in <strong>C</strong></li>
+<li>And I will just mention that "hey, the <code>add</code> function will come from that assembly code"</li>
+</ul>
+<p><strong>The C code (main.c):</strong></p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">#include</span><span style="color:#96D0FF"> &lt;stdio.h&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#768390">// Declaring that add function exists somewhere else (in our assembly file)</span></span>
+<span class="line"><span style="color:#F47067">extern</span><span style="color:#F47067"> int</span><span style="color:#DCBDFB"> add</span><span style="color:#ADBAC7">(</span><span style="color:#F47067">int</span><span style="color:#F69D50"> a</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">int</span><span style="color:#F69D50"> b</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#DCBDFB"> main</span><span style="color:#ADBAC7">() {</span></span>
+<span class="line"><span style="color:#F47067">    int</span><span style="color:#ADBAC7"> result </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> add</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">5</span><span style="color:#ADBAC7">, </span><span style="color:#6CB6FF">3</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#DCBDFB">    printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"Result: </span><span style="color:#F47067">%d\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7">, result);</span></span>
+<span class="line"><span style="color:#F47067">    return</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span></code></pre>
+<p><strong>The Assembly code (add.s):</strong></p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span>    .globl add</span></span>
+<span class="line"><span>add:</span></span>
+<span class="line"><span>    mov %edi %eax</span></span>
+<span class="line"><span>    add %esi %eax</span></span>
+<span class="line"><span>    ret</span></span>
+<span class="line"><span></span></span></code></pre>
+<p>Now here's how we combine them:</p>
+<ol>
+<li>First, we compile the C code but <strong>stop before the linker,</strong> we just get the object file:</li>
+</ol>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">gcc</span><span style="color:#6CB6FF"> -c</span><span style="color:#96D0FF"> main.c</span><span style="color:#6CB6FF"> -o</span><span style="color:#96D0FF"> main.o</span></span>
+<span class="line"></span></code></pre>
+<ol>
+<li>Then we assemble the assembly code to get its object file:</li>
+</ol>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">as</span><span style="color:#96D0FF"> add.s</span><span style="color:#6CB6FF"> -o</span><span style="color:#96D0FF"> add.o</span><span style="color:#768390"> #as -&gt; GNU assembler</span></span>
+<span class="line"></span></code></pre>
+<ol>
+<li>Now we <strong>link both object files together</strong>:</li>
+</ol>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">gcc</span><span style="color:#96D0FF"> main.o</span><span style="color:#96D0FF"> add.o</span><span style="color:#6CB6FF"> -o</span><span style="color:#96D0FF"> program</span></span>
+<span class="line"></span></code></pre>
+<p>And boom , you got a binary with both <strong>C and assembly combined</strong>. Congratulations!</p>
+<p>Or just directly pass the values to gcc, it will do the rest.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">gcc</span><span style="color:#96D0FF"> main.c</span><span style="color:#96D0FF"> add.s</span><span style="color:#6CB6FF"> -o</span><span style="color:#96D0FF"> main</span></span>
+<span class="line"></span></code></pre>
+<p>The linker doesn't care where the object files came from. It just sees object files with machine code and symbols (function names) that need to be resolved. It connects them together and gives you the final binary.</p>
+<h3>Why Do Projects Use Multiple Languages?</h3>
+<p>This is a very valid question. Why not just write everything in one language?</p>
+<p>The answer is simple, <strong>each language has its strengths</strong>.</p>
+<p>You could put the core logic in a high-level language like C or Go (for readability and ease of development) and the <strong>performance-critical operations in assembly</strong> (for maximum speed and hardware control).</p>
+<p>Most of the programming languages, they have some backend in assembly. Like <strong>Linux kernel</strong> , it's mostly coded in C, but the performance-critical operations will always be coded in assembly. Because you know, the most optimized APIs will be in assembly and you don't have to rewrite that in C.</p>
+<p>That's why they have made it possible, you can always take that assembly code and connect it with C or any other language. You can run anything in your code as you want.</p>
+<p>Some real-world examples:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Project</th><th>Languages Combined</th><th>Why?</th></tr></thead><tbody><tr><td>Linux Kernel</td><td>C + Assembly</td><td>Core in C, hardware/perf-critical in Assembly</td></tr><tr><td>CPython</td><td>C + Python</td><td>Interpreter in C, scripting in Python</td></tr><tr><td>Firefox</td><td>C++ + Rust + JavaScript</td><td>Legacy in C++, safe components in Rust, web scripting in JS</td></tr><tr><td>Go Runtime</td><td>Go + Assembly</td><td>Runtime in Go, low-level scheduler/GC in Assembly</td></tr></tbody></table>
+<p>The point is, this ability to break the compilation pipeline into parts and link different languages together is what makes systems programming so powerful.</p>
+<h2>The Problem: How Do Languages Talk to Each Other?</h2>
+<hr>
+<p>Now hold on. This sounds too easy right? Just compile separately and link together? There's a catch.</p>
+<p>Think about it. When two different languages generate assembly code, they might do things <strong>differently</strong>. And this creates ambiguity. Let me explain with two cases.</p>
+<h3>Case 1: Register Conventions</h3>
+<p>Let's say we have an <code>add(a, b)</code> function implemented in two different languages.</p>
+<p><strong>Language A's assembly:</strong></p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span>; Language A puts 'a' in R0, 'b' in R1</span></span>
+<span class="line"><span>; And returns the result in R3</span></span>
+<span class="line"><span>add:</span></span>
+<span class="line"><span>    ADD R3, R0, R1    ; R3 = R0 + R1</span></span>
+<span class="line"><span>    RET</span></span>
+<span class="line"><span></span></span></code></pre>
+<p><strong>Language B's assembly:</strong></p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span>; Language B puts 'a' in R1, 'b' in R2</span></span>
+<span class="line"><span>; And returns the result in R0</span></span>
+<span class="line"><span>add:</span></span>
+<span class="line"><span>    ADD R0, R1, R2    ; R0 = R1 + R2</span></span>
+<span class="line"><span>    RET</span></span>
+<span class="line"><span></span></span></code></pre>
+<p>See the problem? Language A stores the parameters in <code>R0</code> and <code>R1</code> and puts the result in <code>R3</code>. But Language B uses <code>R1</code> and <code>R2</code> for parameters and puts the result in <code>R0</code>.</p>
+<p>If Language A calls Language B's <code>add</code> function, it will put the values in <code>R0</code> and <code>R1</code>, but Language B expects them in <code>R1</code> and <code>R2</code>. It doesn't know which register to get the values from and which register to put the result. Complete chaos.</p>
+<h3>Case 2: Value vs Reference</h3>
+<p>Here's another tricky case. Let's say Language A uses <strong>call by value</strong> , it stores the actual value in the register. So if <code>a = 5</code>, the register literally holds the number <code>5</code>.</p>
+<p>But Language B assumes <strong>call by reference,</strong> it expects the register to hold the <strong>memory address</strong> where the value is stored. So it reads the register, gets <code>5</code>, and treats it as a memory address. It goes to memory address <code>5</code> and tries to read the value from there.</p>
+<p>That's a disaster. It will either crash or give completely wrong results. Because one language is passing the actual data, and the other is treating it as a pointer.</p>
+<h3>More Cases</h3>
+<p>And there will be even more cases if you think about it:</p>
+<ul>
+<li><strong>Stack frame layout</strong> : Different languages might push function arguments onto the stack in different orders (left-to-right vs right-to-left)</li>
+<li><strong>Who cleans up the stack</strong> : After a function call, does the caller clean up the stack or the callee? Different languages, different conventions</li>
+<li><strong>Name mangling</strong> : C++ mangles function names to support overloading (<code>add</code> becomes something like <code>_Z3addii</code>), while C doesn't. So the linker might not find matching symbols</li>
+</ul>
+<p>So there must be a standard, some common ground that all languages agree to follow when they generate machine code. Otherwise, combining languages would be impossible.</p>
+<h2>ABI - Application Binary Interface</h2>
+<hr>
+<p>And that standard is called the <strong><a href="https://en.wikipedia.org/wiki/Application_binary_interface">ABI</a></strong><a href="https://en.wikipedia.org/wiki/Application_binary_interface">  </a><strong><a href="https://en.wikipedia.org/wiki/Application_binary_interface">Application Binary Interface</a></strong>.</p>
+<p>The ABI is basically a contract. It defines the rules that programs must follow to communicate with each other at the binary level. Think of it like a protocol, just like how HTTP defines how a browser talks to a server, ABI defines how compiled code from different languages talks to each other.</p>
+<p>The programs must implement these standards and conventions to actually communicate with each other.</p>
+<p>What does the ABI define?</p>
+<ol>
+<li><strong>Calling conventions</strong> : Which registers hold function arguments? In what order? Where does the return value go?</li>
+<li><strong>Register usage</strong> : Which registers are caller-saved (the caller must save them before calling) and which are callee-saved (the called function must preserve them)?</li>
+<li><strong>Stack frame layout</strong> : How is the stack organized during a function call? Where are local variables? Where is the return address?</li>
+<li><strong>Data types and alignment</strong> : How big is an <code>int</code>? How are structs laid out in memory? What alignment do they need?</li>
+<li>**<a href="https://en.wikipedia.org/wiki/Name_mangling">Name mangling </a>**<strong>rules</strong> : How are function names represented in the object file?</li>
+<li><strong>System call interface</strong> : How does user code call into the kernel?</li>
+</ol>
+<p>For example, on <strong><a href="https://zweng.dev/System-V-ABI-calling-convention-for-x86_64">x86-64 Linux</a></strong>, the System V ABI says:</p>
+<ul>
+<li>First 6 integer arguments go in registers: <code>RDI</code>, <code>RSI</code>, <code>RDX</code>, <code>RCX</code>, <code>R8</code>, <code>R9</code></li>
+<li>Return value goes in <code>RAX</code></li>
+<li>The caller is responsible for cleaning up the stack</li>
+</ul>
+<p>So if both Language A and Language B follow the System V ABI, they'll agree on where to put function arguments and where to find the return value. No ambiguity. No chaos. Everything works together.</p>
+<blockquote>
+<p><strong>Think of it this way:</strong> ABI is like the electrical socket standard in your country. Every device (language) must use the same plug format (ABI) to connect to the power outlet (hardware). If everyone follows the same standard, any device works with any outlet.</p>
+</blockquote>
+<p>That's why when you compile C code with GCC on x86-64 Linux, and compile Rust code with <code>rustc</code> on the same platform, and link them together, it works. Because both compilers generate code that follows the same ABI.</p>
+<h2>Compilers Are Not All the Same</h2>
+<hr>
+<p>One important thing to keep in mind, the compilers for each language has a different flow, like Rust, will cover that later. The way GCC compiles C is not the same way <code>rustc</code> compiles Rust, or how the Go compiler compiles Go.</p>
+<p>Each compiler has its own:</p>
+<ul>
+<li><strong>Frontend</strong> : parsing the specific language syntax</li>
+<li><strong>Intermediate representation</strong> : how it represents code internally for optimization</li>
+<li><strong>Backend</strong> : how it generates assembly for the target architecture</li>
+<li><strong>Optimization passes</strong> : different compilers optimize differently</li>
+</ul>
+<p>For example, Rust's compiler (<code>rustc</code>) goes through an additional borrow-checking phase that C doesn't have. Go's compiler is designed for fast compilation and has a different optimization strategy than GCC.</p>
+<p>But here's the beautiful part : <strong>each and every language has its own type of compiling, but linking will most probably be the same.</strong> Because at the end of the day, all compilers produce object files with machine code that follows the platform's ABI. And the linker just connects those object files together.</p>
+<p>That's the elegance of the system. Different compilers, different languages, different philosophies : but they all converge at the linker through a common standard.</p>
+<h2>Summary</h2>
+<hr>
+<p>So to wrap it all up, here's the full picture:</p>
+<p><strong>The GCC Pipeline:</strong></p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">Source</span><span style="color:#DCBDFB"> Code</span><span style="color:#ADBAC7"> (.</span><span style="color:#F69D50">c</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#ADBAC7">    ↓ </span><span style="color:#DCBDFB">Preprocessor</span><span style="color:#ADBAC7"> (removes comments, expands macros, includes headers)</span></span>
+<span class="line"><span style="color:#F69D50">Preprocessed</span><span style="color:#DCBDFB"> Code</span><span style="color:#ADBAC7"> (.</span><span style="color:#F69D50">i</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#ADBAC7">    ↓ </span><span style="color:#DCBDFB">Compiler</span><span style="color:#ADBAC7"> (syntax check, converts to assembly)</span></span>
+<span class="line"><span style="color:#F69D50">Assembly</span><span style="color:#DCBDFB"> Code</span><span style="color:#ADBAC7"> (.</span><span style="color:#F69D50">s</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#ADBAC7">    ↓ </span><span style="color:#DCBDFB">Assembler</span><span style="color:#ADBAC7"> (converts to machine code)</span></span>
+<span class="line"><span style="color:#F69D50">Object</span><span style="color:#DCBDFB"> File</span><span style="color:#ADBAC7"> (.</span><span style="color:#F69D50">o</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#ADBAC7">    ↓ </span><span style="color:#DCBDFB">Linker</span><span style="color:#ADBAC7"> (links with libraries, resolves symbols)</span></span>
+<span class="line"><span style="color:#ADBAC7">Executable Binary</span></span>
+<span class="line"></span></code></pre>
+<p><strong>Linking types:</strong></p>
+<ul>
+<li><strong>Static</strong> -&gt; Library code copied into binary. Self-contained but heavy.</li>
+<li><strong>Dynamic</strong> -&gt; Library loaded at runtime. Lightweight but has dependencies.</li>
+</ul>
+<p><strong>Multi-language projects:</strong></p>
+<ul>
+<li>Break the pipeline at intermediate steps</li>
+<li>Get object files from different languages</li>
+<li>Link them together with the linker</li>
+</ul>
+<p><strong>ABI (Application Binary Interface):</strong></p>
+<ul>
+<li>The standard that makes cross-language linking possible</li>
+<li>Defines register conventions, calling conventions, stack layout</li>
+<li>Without ABI, languages can't communicate at the binary level</li>
+</ul>
+<p>This is how a <code>main.c</code> goes from something you wrote to something your machine can execute. And this is how projects combine C, assembly, Rust, Go, and other languages into a single binary.</p>
+<p>The compilation pipeline is one of those things that once you understand, you'll have a much deeper appreciation for what happens behind the scenes every time you run <code>gcc main.c -o main</code>.</p>
+<p>Will see you in the next one :-)</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><h2 class="text-2xl font-bold mb-6 font-sans text-[#e6e6e6]">Comments</h2><giscus-widget repo="LakshimiRam-073/portfolio2.0" repoid="R_kgDORpPTlA" category="General" categoryid="DIC_kwDORpPTlM4C6UZb" mapping="pathname" strict="0" reactionsenabled="1" emitmetadata="0" inputposition="bottom" theme="dark_dimmed" lang="en" loading="lazy" host="https://giscus.app"></giscus-widget><p class="mt-4 text-xs text-neutral-400 text-center">Comments are powered by <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="underline hover:text-[#e6e6e6]">Giscus</a>. Sign in with GitHub to leave a comment.</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 font-sans no-underline" href="/articles">← Back to Articles</a></div></article></div></main><footer class="border-t border-[#222] bg-[#121212] py-8 mt-12"><div class="max-w-4xl mx-auto px-6 text-center text-neutral-500 text-sm"><p>© 2026. All rights reserved.</p></div></footer></div></div>
+  
+
+</body></html>

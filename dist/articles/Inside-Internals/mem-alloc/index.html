@@ -1,0 +1,267 @@
+<!DOCTYPE html><html lang="en" class="dark" style="background-color:#121212"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Memory allocator in C | Stupid Notes</title>
+    <meta name="description" content="Deep-dive technical articles on databases, system design, and low-level engineering.">
+    <!-- Per-page OG/Twitter tags are injected by react-helmet-async and baked in at
+         prerender time. Keep none here to avoid duplicate/stale tags for crawlers. -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <script type="module" crossorigin="" src="/assets/index-Tc-Mr3sO.js"></script>
+    <link rel="stylesheet" crossorigin="" href="/assets/index-CmaudYtK.css">
+  <meta property="og:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta property="og:site_name" content="Stupid Notes" data-rh="true"><meta name="twitter:card" content="summary_large_image" data-rh="true"><meta name="twitter:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta name="description" content="Making a custom memory allocator to know, what a memory allocator is." data-rh="true"><meta property="og:title" content="Custom Memory allocator in C" data-rh="true"><meta property="og:description" content="Making a custom memory allocator to know, what a memory allocator is." data-rh="true"><meta property="og:type" content="article" data-rh="true"><meta property="og:url" content="https://stupidnotes.in/articles/Inside-Internals/mem-alloc" data-rh="true"><meta name="twitter:title" content="Custom Memory allocator in C" data-rh="true"><meta name="twitter:description" content="Making a custom memory allocator to know, what a memory allocator is." data-rh="true"><meta property="article:published_time" content="2026-03-22" data-rh="true"></head>
+  <body>
+    <div id="root"><div class="bg-[#121212] text-[#e6e6e6] antialiased min-h-screen flex flex-col"><header class="sticky top-0 z-40 bg-[#121212]/80 backdrop-blur-md border-b border-[#222]"><nav class="max-w-[1100px] w-full mx-auto px-8 py-4 flex justify-between items-center max-md:px-6 max-sm:px-4"><a class="text-base font-medium text-[#e6e6e6] hover:opacity-70 transition-opacity font-sans" href="/">stupidnotes.in</a><div class="flex gap-5 items-center text-sm font-sans"><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/about">About</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/articles">Articles</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/resources">Resources</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/ai-conduct">AI Conduct</a></div></nav></header><main class="flex-1"><div class="blog-container min-h-screen py-12 md:py-16"><article class="markdown"><div class="mb-10"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 mb-6 font-sans no-underline" href="/articles">← Back to Articles</a><span class="block text-xs font-medium uppercase tracking-wider text-neutral-300 mb-3 font-sans">Inside Internals</span><h1 class="text-3xl sm:text-4xl md:text-[2.625rem] font-bold tracking-tight mb-4 leading-tight font-display text-[#e6e6e6]">Custom Memory allocator in C</h1><div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-neutral-400 text-sm font-sans"><span>Lakshimi Raman S</span><span>·</span><time datetime="2026-03-22">Mar 22, 2026</time><span>·</span><span>9 min read</span></div></div><p class="text-lg md:text-xl leading-relaxed text-neutral-400 mb-10 border-l-[3px] border-[#2a2a2a] pl-5 py-1">Making a custom memory allocator to know, what a memory allocator is.</p><div class="max-w-none">
+<h1>Prerequisites</h1>
+<p>Inorder to know what a memory allocator is we need to know how the process gets its memory and how the memory is split between the process, basic C knowledge(which I mention to know what a 'malloc' is) and some basic data structures.</p>
+<p><strong>What is a Process's memory?</strong></p>
+<p>In each process the OS will allocate some virtual memory to use that for a process..Think of it like giving you some own flat where you can do anything. And you won't interfere your space with some other flat mates.</p>
+<ol>
+<li>Stack - It stores the local variables and the frame space for execution of process.</li>
+<li>BSS - It stores the uninitialized global variables and the constants</li>
+<li>Data - It stores the initialized global variables and the constants</li>
+<li>Code - It stores the actual instructions to the execution of the process.</li>
+<li>Heap - It is where the actual data will be processed.</li>
+</ol>
+<p>These are called the Memory segments. Think of it like a flat with a Room, Hall, Kitchen, Dining, Balcony..</p>
+<p>When it comes to Stack it requires less memory (Usually <strong>8MB</strong> for a process) You can find it by <code>ulimit -s</code>. But when it's Heap it will outgrow to any extend.</p>
+<p><strong>Note: </strong><code>ulimit</code> command is the setting given by Linux OS to configure and control the user limit to the memory. You can able to set limits to how much process, memory, stack meomry, etc... it can run on the OS for that user.</p>
+<h2>malloc</h2>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">int</span><span style="color:#F47067"> *</span><span style="color:#F69D50">arr</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">] </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> malloc</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">10</span><span style="color:#F47067"> *</span><span style="color:#DCBDFB"> size</span><span style="color:#ADBAC7">(</span><span style="color:#F47067">int</span><span style="color:#ADBAC7">)); </span></span>
+<span class="line"></span></code></pre>
+<p>When you use malloc, it tries to fetch the memory from the heap and reserves it for you, you can use the memory for further operations. And if the memory heap is at its end (i.e Program break). Then it asks OS(sbrk syscall) to extend the heap of the process. Sounds easy right ?</p>
+<p><strong>How does it knows where to fetch the memory?</strong></p>
+<p><strong>How does it allocate memory?</strong></p>
+<p><strong>What it actually does ? and what it is internally using ?</strong></p>
+<p><strong>How do you free or reuse the memory?</strong></p>
+<p>Let's see those questions answerd in a few minuites...</p>
+<h3>Memory structure for memory allocation</h3>
+<p>Memory allocation is pretty simple, It is actually a linked list.. But it is being heavily used with more complications. TBH they will extend the Linked list to it's limits.</p>
+<p>Heap is actually a contagious memory block. That's why I have mentioned OS will extend the memory block.</p>
+<h2>Memory storage structure.</h2>
+<h4>Block</h4>
+<p>The heap is divided into memory blocks that can be managed by the malloc or a memory allocator.</p>
+<p>When you allocate memory of 100 bytes</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">void</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">p </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> malloc</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">100</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"></span></code></pre>
+<p>It will be actually a block of memory that will be allocated. What is exactly a block here ?</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">|</span><span style="color:#ADBAC7"> metadata </span><span style="color:#F47067">|</span><span style="color:#6CB6FF"> 100</span><span style="color:#ADBAC7"> bytes usable by program </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">            ^</span></span>
+<span class="line"><span style="color:#F69D50">            returned</span><span style="color:#DCBDFB"> pointer</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">p</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"></span></code></pre>
+<p>This is exactly a block of storage. And what does the meta data look like?</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">typedef</span><span style="color:#F47067"> struct</span><span style="color:#ADBAC7"> metablock{</span></span>
+<span class="line"><span style="color:#F47067">  size_t</span><span style="color:#ADBAC7"> size;</span><span style="color:#768390"> // Size of the memory block(in our case 100)</span></span>
+<span class="line"><span style="color:#F47067">  short</span><span style="color:#F47067"> int</span><span style="color:#ADBAC7"> free;</span><span style="color:#768390"> // to check the memory block is free</span></span>
+<span class="line"><span style="color:#F47067">  struct</span><span style="color:#ADBAC7"> metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">next;</span><span style="color:#768390"> // next memory block</span></span>
+<span class="line"><span style="color:#768390">// struct metablock *prev; //for complex algorithms</span></span>
+<span class="line"><span style="color:#ADBAC7">}metablock;</span></span>
+<span class="line"></span></code></pre>
+<p>So each memory block will have it's own meta block and the block which is asked by the user.</p>
+<p>OKKK, where is the head of the linked list.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">head </span><span style="color:#F47067">=</span><span style="color:#6CB6FF"> NULL</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"></span></code></pre>
+<p>The head is stored in BSS. Later it will be mapped at runtime.</p>
+<h2>LL Structure</h2>
+<p><img src="/assets/yIzV6x2uA5SLjqjiYWWPQCV-pal8zx13WjGr8njfMBM=.png" alt="Linked List Structure"></p>
+<p>This how the memory looks like to a memory  allocator.</p>
+<h2>Memory allocation</h2>
+<p>Ok then, How do they give it to the users?</p>
+<p><strong>How do they create memory then ? </strong></p>
+<p>By requesting the OS with <code>sbrk</code>.</p>
+<p>When we call sbrk(0) it gives the current limit of the heap ends in the process(i.e that is the address of page-break)</p>
+<p>Then we would ask the sbrk by passing the no of bytes we want sbrk(100). Then It will extend the heap by such bytes.</p>
+<p>Example:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">    void</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">initial </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> sbrk</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">);</span><span style="color:#768390">   // get current break</span></span>
+<span class="line"><span style="color:#DCBDFB">    printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"Initial break: </span><span style="color:#F47067">%p\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7">, initial);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">    void</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">block1 </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> sbrk</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">100</span><span style="color:#ADBAC7">);</span><span style="color:#768390">  // allocate 100 bytes</span></span>
+<span class="line"><span style="color:#DCBDFB">    printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"Allocated 100 bytes at: </span><span style="color:#F47067">%p\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7">, block1);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">    void</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">after1 </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> sbrk</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#DCBDFB">    printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"Break after allocation: </span><span style="color:#F47067">%p\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7">, after1);</span></span>
+<span class="line"></span></code></pre>
+<p>Which will give the following output</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">Initial </span><span style="color:#F47067">break</span><span style="color:#ADBAC7">:        </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">555555757000</span></span>
+<span class="line"><span style="color:#ADBAC7">Allocated </span><span style="color:#6CB6FF">100</span><span style="color:#ADBAC7"> bytes:  </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">555555757000</span></span>
+<span class="line"><span style="color:#ADBAC7">Break after:          </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">555555757064</span></span>
+<span class="line"></span></code></pre>
+<p>You see the heap end is moved by 100 bytes.</p>
+<p>Then why does it return the same address in the second line? -&gt; It gives the usable heap.</p>
+<h4>How does it knows where to fetch the memory?</h4>
+<p>To be simple we need to traverse through the list and get the size block which is greater than the user asked and give the block.</p>
+<p>but It is said to have 3 statergies for the traversal itself</p>
+<ol>
+<li>First fit</li>
+<li>Next fit</li>
+<li>Best fit</li>
+</ol>
+<p>I don't want to explain all that. You can able to get the understanding by going through this <a href="https://www.tutorialspoint.com/operating_system/os_memory_allocation_qa2.htm">Link</a>.</p>
+<p>So we are using the First fit algo, but modern memory allocators use more advanced algorithms.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">metablock</span><span style="color:#F47067">*</span><span style="color:#DCBDFB"> check_current_free_blocks</span><span style="color:#ADBAC7">(</span><span style="color:#F47067">size_t</span><span style="color:#F69D50"> size</span><span style="color:#ADBAC7">){</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  metablock</span><span style="color:#F47067">*</span><span style="color:#ADBAC7"> curr </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> head;</span></span>
+<span class="line"><span style="color:#F47067">  while</span><span style="color:#ADBAC7">(curr){</span></span>
+<span class="line"><span style="color:#F47067">    if</span><span style="color:#ADBAC7">(curr-&gt;free </span><span style="color:#F47067">&amp;&amp;</span><span style="color:#ADBAC7">  curr-&gt;size </span><span style="color:#F47067">&gt;=</span><span style="color:#ADBAC7"> size){</span></span>
+<span class="line"><span style="color:#F47067">      return</span><span style="color:#ADBAC7"> curr;</span></span>
+<span class="line"><span style="color:#ADBAC7">    }</span></span>
+<span class="line"><span style="color:#ADBAC7">    curr </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> curr-&gt;next;</span></span>
+<span class="line"><span style="color:#ADBAC7">  }</span></span>
+<span class="line"><span style="color:#F47067">  return</span><span style="color:#6CB6FF"> NULL</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span></code></pre>
+<p> The above code is to check whether the size the user asked free memory block is present or not in the Linked list of blocks.</p>
+<p>What happens if the user asked 100 bytes and we gave a 500 byte block? It's easy just split the block and add the free block to the list.</p>
+<p>But it requires precise calculation.</p>
+<p><img src="/assets/lk74lxruVrbov_rTvYmMblSDNeDGgbt1U63Tge6K7Fo=.png" alt="Splitting memory blocks"></p>
+<p>To explain in a different way, I just made one drawing to say, we will split the available region to a new block and give the requested block to the user, this way we won't overallocate</p>
+<p>y* is the new address of the block and A* is the new blocks actual size.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">void</span><span style="color:#DCBDFB"> split_block</span><span style="color:#ADBAC7">(metablock</span><span style="color:#F47067">*</span><span style="color:#F69D50"> block</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">size_t</span><span style="color:#F69D50"> size</span><span style="color:#ADBAC7">){</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">  char</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">ptr_meta_block </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> (</span><span style="color:#F47067">char</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">)(block </span><span style="color:#F47067">+</span><span style="color:#6CB6FF"> 1</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">+</span><span style="color:#ADBAC7"> size;</span></span>
+<span class="line"><span style="color:#ADBAC7">  metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">new_block </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> (metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">)ptr_meta_block;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ADBAC7">  new_block-&gt;free</span><span style="color:#F47067">=</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">  new_block-&gt;next</span><span style="color:#F47067">=</span><span style="color:#ADBAC7">block-&gt;next;</span></span>
+<span class="line"><span style="color:#ADBAC7">  new_block-&gt;size </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> block-&gt;size </span><span style="color:#F47067">-</span><span style="color:#F47067"> sizeof</span><span style="color:#ADBAC7">(metablock) </span><span style="color:#F47067">-</span><span style="color:#ADBAC7"> size;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ADBAC7">  block-&gt;next </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> new_block;</span></span>
+<span class="line"><span style="color:#ADBAC7">  block-&gt;size </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> size;</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span>
+<span class="line"></span></code></pre>
+<p>To explain the code, I used <code>char*</code>  to do pointer arithmetic to move <code>metablock</code> bytes.</p>
+<h4>
+How does it allocate memory?</h4>
+<p>If not present in the Linked List then what ? We will ask the OS to extend.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">metablock</span><span style="color:#F47067"> *</span><span style="color:#DCBDFB">request_os_heap</span><span style="color:#ADBAC7">(</span><span style="color:#F47067">size_t</span><span style="color:#F69D50"> size</span><span style="color:#ADBAC7">){</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">current_program_break </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> sbrk</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#ADBAC7">  metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">request </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> sbrk</span><span style="color:#ADBAC7">(</span><span style="color:#F47067">sizeof</span><span style="color:#ADBAC7">(metablock) </span><span style="color:#F47067">+</span><span style="color:#ADBAC7"> size);</span></span>
+<span class="line"><span style="color:#F47067">  if</span><span style="color:#ADBAC7"> (request </span><span style="color:#F47067">==</span><span style="color:#ADBAC7"> (</span><span style="color:#F47067">void</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">-</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7"> )</span></span>
+<span class="line"><span style="color:#ADBAC7">  {</span></span>
+<span class="line"><span style="color:#F47067">    return</span><span style="color:#6CB6FF"> NULL</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">  }</span></span>
+<span class="line"><span style="color:#768390">  //now extended by sbrk</span></span>
+<span class="line"><span style="color:#ADBAC7">  current_program_break-&gt;free</span><span style="color:#F47067">=</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">  current_program_break-&gt;next</span><span style="color:#F47067">=</span><span style="color:#6CB6FF">NULL</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">  current_program_break-&gt;size</span><span style="color:#F47067">=</span><span style="color:#ADBAC7">size;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">  return</span><span style="color:#ADBAC7"> current_program_break;</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span></code></pre>
+<p>It will syscall the OS and get the heap from it.</p>
+<h4> What it actually does ? and what is it internally using ?</h4>
+<p>Just combine all these and make some logic to have memory</p>
+<ul>
+<li>First we will check do we have any block that has any memory to use ?
+<ul>
+<li>If we have block, just give the block
+<ul>
+<li>Ohh it's too large then, split and give.</li>
+</ul>
+</li>
+<li>If we don't have the block then ask from OS and extend the heap.</li>
+</ul>
+</li>
+</ul>
+<h4>How do you free or reuse the memory?</h4>
+<p>We will reuse the memory just by marking it free (Just kidding). Freeing is also the most important here, If we have a list full of free 100 byte blocks, when the user asks for a 500 byte block. We will create or request the OS to give heap. Which will lead to serious <a href="https://www.quora.com/What-happens-when-heap-memory-is-full">issues</a>.</p>
+<p>So to avoid fragmentation of memory blocks of not being used, we will just merge the blocks when it is freed</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">void</span><span style="color:#DCBDFB"> merge_free_blocks</span><span style="color:#ADBAC7">(){</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">current </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> head;</span></span>
+<span class="line"><span style="color:#F47067">  while</span><span style="color:#ADBAC7"> (current </span><span style="color:#F47067">&amp;&amp;</span><span style="color:#ADBAC7"> current-&gt;next)</span></span>
+<span class="line"><span style="color:#ADBAC7">  {</span></span>
+<span class="line"><span style="color:#F47067">    if</span><span style="color:#ADBAC7"> (current-&gt;free </span><span style="color:#F47067">&amp;&amp;</span><span style="color:#ADBAC7"> current-&gt;next-&gt;free)</span></span>
+<span class="line"><span style="color:#ADBAC7">    {</span></span>
+<span class="line"><span style="color:#ADBAC7">      current-&gt;size </span><span style="color:#F47067">+=</span><span style="color:#ADBAC7"> current-&gt;next-&gt;size </span><span style="color:#F47067">+</span><span style="color:#F47067"> sizeof</span><span style="color:#ADBAC7">(metablock);</span></span>
+<span class="line"><span style="color:#ADBAC7">      current-&gt;free</span><span style="color:#F47067">=</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">      current-&gt;next </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> current-&gt;next-&gt;next;</span></span>
+<span class="line"><span style="color:#ADBAC7">    }</span><span style="color:#F47067">else</span><span style="color:#ADBAC7">{</span></span>
+<span class="line"><span style="color:#ADBAC7">      current </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> current-&gt;next;</span></span>
+<span class="line"><span style="color:#ADBAC7">    }</span></span>
+<span class="line"><span style="color:#ADBAC7">    </span></span>
+<span class="line"><span style="color:#ADBAC7">  }</span></span>
+<span class="line"><span style="color:#ADBAC7">  metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">tmp </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> head;</span></span>
+<span class="line"><span style="color:#F47067">  while</span><span style="color:#ADBAC7"> (tmp </span><span style="color:#F47067">&amp;&amp;</span><span style="color:#ADBAC7"> tmp-&gt;next) {</span></span>
+<span class="line"><span style="color:#ADBAC7">    tmp </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> tmp-&gt;next;</span></span>
+<span class="line"><span style="color:#ADBAC7">  }</span></span>
+<span class="line"><span style="color:#ADBAC7">  tail </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> tmp;</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">void</span><span style="color:#DCBDFB"> custom_free</span><span style="color:#ADBAC7">(</span><span style="color:#F47067">void</span><span style="color:#F47067"> *</span><span style="color:#F69D50">ptr</span><span style="color:#ADBAC7">){</span></span>
+<span class="line"><span style="color:#F47067">  if</span><span style="color:#ADBAC7"> (</span><span style="color:#F47067">!</span><span style="color:#ADBAC7">ptr)</span></span>
+<span class="line"><span style="color:#ADBAC7">  {</span></span>
+<span class="line"><span style="color:#F47067">    return</span><span style="color:#ADBAC7">; </span></span>
+<span class="line"><span style="color:#ADBAC7">  }</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  metablock</span><span style="color:#F47067">*</span><span style="color:#ADBAC7"> block </span><span style="color:#F47067">=</span><span style="color:#ADBAC7"> (metablock </span><span style="color:#F47067">*</span><span style="color:#ADBAC7">)ptr </span><span style="color:#F47067">-</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">  block-&gt;free</span><span style="color:#F47067">=</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#DCBDFB">  merge_free_blocks</span><span style="color:#ADBAC7">();</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span>
+<span class="line"></span></code></pre>
+<p>As I said, we will loop the memory blocks and make it merge if two contagious memory blocks present, to avoid fragmentation.</p>
+<h4>Results</h4>
+<p>Results were pretty good, able to split and merge the memory allocations.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">int</span><span style="color:#DCBDFB"> main</span><span style="color:#ADBAC7">() {</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">a </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> custom_alloc</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">20</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">b </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> custom_alloc</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">20</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">c </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> custom_alloc</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">20</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">print_heap</span><span style="color:#ADBAC7">();</span></span>
+<span class="line"><span style="color:#DCBDFB">custom_free</span><span style="color:#ADBAC7">(b);</span></span>
+<span class="line"><span style="color:#DCBDFB">custom_free</span><span style="color:#ADBAC7">(a);</span><span style="color:#768390">  // should merge a + b</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">print_heap</span><span style="color:#ADBAC7">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">custom_free</span><span style="color:#ADBAC7">(c);</span><span style="color:#768390">  // now merge all</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">print_heap</span><span style="color:#ADBAC7">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#F47067"> *</span><span style="color:#ADBAC7">d </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> custom_alloc</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">30</span><span style="color:#ADBAC7">);</span><span style="color:#768390">  // now split </span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">print_heap</span><span style="color:#ADBAC7">();</span></span>
+<span class="line"><span style="color:#DCBDFB">custom_free</span><span style="color:#ADBAC7">(d);</span><span style="color:#768390">  // now merge</span></span>
+<span class="line"><span style="color:#DCBDFB">print_heap</span><span style="color:#ADBAC7">(); </span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">return</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span></code></pre>
+<p>Able to easily merge the blocks when freeing well and split as well when the required block is less.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">HEAP</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a000</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a018</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">20</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a02c</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a02c</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a044</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">20</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a058</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a058</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a070</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">20</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: (nil)</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">END</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">HEAP</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a000</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a018</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">64</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a058</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a058</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a070</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">20</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: (nil)</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">END</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">HEAP</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a000</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a018</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">108</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: (nil)</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">END</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">HEAP</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a000</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a018</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">30</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a036</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a036</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a04e</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">54</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: (nil)</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">END</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">HEAP</span><span style="color:#F47067">---------</span></span>
+<span class="line"><span style="color:#ADBAC7">Meta: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a000</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Data: </span><span style="color:#F47067">0x</span><span style="color:#6CB6FF">62743bf7a018</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Size: </span><span style="color:#6CB6FF">108</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Free: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067"> |</span><span style="color:#ADBAC7"> Next: (nil)</span></span>
+<span class="line"><span style="color:#F47067">-----------</span><span style="color:#ADBAC7">END</span><span style="color:#F47067">---------</span></span>
+<span class="line"></span></code></pre>
+<h2>Final Note</h2>
+<ul>
+<li>This is not a perfect implementation for the memory allocation.</li>
+<li>As it requires concurrency control,  more precise metablock to store less, inorder to have more data block.</li>
+<li>This will be posted in <a href="https://github.com/LakshimiRam-073/Internal-workings/blob/main/memory-allocator/main.c">git</a>, you can checkout there.</li>
+</ul></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><h2 class="text-2xl font-bold mb-6 font-sans text-[#e6e6e6]">Comments</h2><giscus-widget repo="LakshimiRam-073/portfolio2.0" repoid="R_kgDORpPTlA" category="General" categoryid="DIC_kwDORpPTlM4C6UZb" mapping="pathname" strict="0" reactionsenabled="1" emitmetadata="0" inputposition="bottom" theme="dark_dimmed" lang="en" loading="lazy" host="https://giscus.app"></giscus-widget><p class="mt-4 text-xs text-neutral-400 text-center">Comments are powered by <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="underline hover:text-[#e6e6e6]">Giscus</a>. Sign in with GitHub to leave a comment.</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 font-sans no-underline" href="/articles">← Back to Articles</a></div></article></div></main><footer class="border-t border-[#222] bg-[#121212] py-8 mt-12"><div class="max-w-4xl mx-auto px-6 text-center text-neutral-500 text-sm"><p>© 2026. All rights reserved.</p></div></footer></div></div>
+  
+
+</body></html>

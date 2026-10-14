@@ -1,0 +1,187 @@
+<!DOCTYPE html><html lang="en" class="dark" style="background-color:#121212"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 1 | Stupid Notes</title>
+    <meta name="description" content="Deep-dive technical articles on databases, system design, and low-level engineering.">
+    <!-- Per-page OG/Twitter tags are injected by react-helmet-async and baked in at
+         prerender time. Keep none here to avoid duplicate/stale tags for crawlers. -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <script type="module" crossorigin="" src="/assets/index-Tc-Mr3sO.js"></script>
+    <link rel="stylesheet" crossorigin="" href="/assets/index-CmaudYtK.css">
+  <meta property="og:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta property="og:site_name" content="Stupid Notes" data-rh="true"><meta name="twitter:card" content="summary_large_image" data-rh="true"><meta name="twitter:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta name="description" content="Basics of Database internals to know about." data-rh="true"><meta property="og:title" content="Chapter 1" data-rh="true"><meta property="og:description" content="Basics of Database internals to know about." data-rh="true"><meta property="og:type" content="article" data-rh="true"><meta property="og:url" content="https://stupidnotes.in/articles/Database-Internals/Chapter-1" data-rh="true"><meta name="twitter:title" content="Chapter 1" data-rh="true"><meta name="twitter:description" content="Basics of Database internals to know about." data-rh="true"><meta property="article:published_time" content="2026-03-21" data-rh="true"></head>
+  <body>
+    <div id="root"><div class="bg-[#121212] text-[#e6e6e6] antialiased min-h-screen flex flex-col"><header class="sticky top-0 z-40 bg-[#121212]/80 backdrop-blur-md border-b border-[#222]"><nav class="max-w-[1100px] w-full mx-auto px-8 py-4 flex justify-between items-center max-md:px-6 max-sm:px-4"><a class="text-base font-medium text-[#e6e6e6] hover:opacity-70 transition-opacity font-sans" href="/">stupidnotes.in</a><div class="flex gap-5 items-center text-sm font-sans"><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/about">About</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/articles">Articles</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/resources">Resources</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/ai-conduct">AI Conduct</a></div></nav></header><main class="flex-1"><div class="blog-container min-h-screen py-12 md:py-16"><article class="markdown"><div class="mb-10"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 mb-6 font-sans no-underline" href="/articles">← Back to Articles</a><span class="block text-xs font-medium uppercase tracking-wider text-neutral-300 mb-3 font-sans">Database Internals</span><h1 class="text-3xl sm:text-4xl md:text-[2.625rem] font-bold tracking-tight mb-4 leading-tight font-display text-[#e6e6e6]">Chapter 1</h1><div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-neutral-400 text-sm font-sans"><span>Lakshimi Raman S</span><span>·</span><time datetime="2026-03-21">Mar 21, 2026</time><span>·</span><span>11 min read</span></div></div><p class="text-lg md:text-xl leading-relaxed text-neutral-400 mb-10 border-l-[3px] border-[#2a2a2a] pl-5 py-1">Basics of Database internals to know about.</p><div class="max-w-none">
+<h2>Intro for the series</h2>
+<p>This is just some random notes and ideas about the book I read Database internals by Petrov alex(And I love reading about the internals and architechture behind systems - Gives me dopamine tho). Don't consider it as the perfect replica/ Exact notes of the book. It may have some of my  ideas and findings about the topics and changes from the original content.</p>
+<p>Friendly Note: It may not be for beginners.</p>
+<h2>Storage engines</h2>
+<p>What exactly is a storage engine?</p>
+<p>Apart from conventional explaination.. The storage engine is nothing but a way or method to store/acess/change data the way we want. It is like a data manipulation API with having granularity over data.</p>
+<p>I know it might not sound technical, but you know, you get the idea right?</p>
+<p>For example: The Database engine from Mysql(B-Tree based) and a Key value store like RocksDB(LSM based) will be different, and their use cases also vary..</p>
+<h2>Types of Databases</h2>
+<ol>
+<li>
+<p><strong>OLTP Databases.</strong></p>
+<p>OLTP(Online Transaction Processing) databases are the holy grail of the buisness systems, Every single banks will use the OLTP based system inorder to survive the machine or OS crashes to maintain their transaction based systems.</p>
+<p>Every change will be made via a transaction(TX) - No partial writes. System stays atomic all the time.</p>
+<p> Cause it follows the ACID properties. most of the databases will be in the category of row based, Example: Myql and Postgresql</p>
+</li>
+<li>
+<p><strong>OLAP Databases</strong></p>
+<p>OLAP(Online analytical processing) databases are meant to be for Analytical based workloads, where the data is always/retrieved or manipulated in larger scale, and it does'nt need to be transaction based. Example: Clickhouse</p>
+</li>
+<li>
+<p><strong>HTAP Databases</strong></p>
+<p>It is a mix of both OLTP and OLAP. It should support both analytical as well as transactional.( I did'nt seen anything till today with perfect of both OLTP and OLAP, but we can combine the OLTP + ETL + OLAP to achieve this).</p>
+</li>
+</ol>
+<h2>DBMS Architechture</h2>
+<p>Each database provides it's own value and it's own use. Most(Almost all) of the database systems will follow the client/server architechture where it will talk to the other systems or clients and transfer thier data over the protocols they follow.</p>
+<p>But most of them will follow the same architechture but different implementation.</p>
+<h3>Core Components</h3>
+<p>Here, we have a DBMS architechture which says the core parts to be present inorder to store a data. It might vary database to database. Since I am biased with Disk persisted DBMS, I am goint to use this image.</p>
+<p><img src="/assets/database_arch.png" alt="Database Architecture"></p>
+<h4>Transport Layer</h4>
+<p>This part is the curcial part where it will handle the outer communication with the clients(Applications for some instance) and authenticates(SSL auth if configured) the clients and transports the data with specifed protocol.  Example Postgresql uses Wire protocol.</p>
+<p>It will also communicate with the the other servers to store it's log change, to apply the changes made by the server(Replication).</p>
+<p><strong>Note</strong>: The log that I have mentioned will have a significant role to restore the database from crash. Will cover it sooner.</p>
+<h4>Query Processor</h4>
+<p>Each databases will have it's own query processor to process the clients query and make sure it is semantically correct. And the syntactial corectness of the query. And parse the query to pass it to the optimizer.</p>
+<p>And finally the Optimizer, It is one of the core components to be used to optimize the query the client have given. It uses fancy algorithms and medians to find the correct points and a query plan... And many magics to find the best and most optimized way to execute the query.</p>
+<p>Let's dive into Optimizer in another blog.</p>
+<h4>Execution Engine</h4>
+<p>Execution engine is the query executioner, since Query optimizer will plan the best available plan. The query plan will be executed by the execution engine and collect the results and send it to the transport layer.</p>
+<p>But before execution, it will make sure to have an entry in the log, for future recoveries.</p>
+<h4>Storage engine</h4>
+<p>It has the more cool parts that you could imagine, It maintains a way to store/retrieve/access the data(We already talked about that) over the disk and the memory.</p>
+<p>It has</p>
+<ul>
+<li><strong>TX manager</strong>
+<ul>
+<li>Which will be the key for concurrent transactions to access/change the data without modifying the other transactions [<a href="https://www.postgresql.org/docs/current/transaction-iso.html">Check transaction isolations</a>].</li>
+</ul>
+</li>
+<li><strong>Lock manager</strong>
+<ul>
+<li>The lock manager is responsible for the resource managing sections, what if 2 transactions/2 process trying to acess a same file or table. It might lead to corruption. to avoid that we use locking mechanisms to have that sorted out.</li>
+</ul>
+</li>
+<li><strong>Access methods</strong>
+<ul>
+<li>Different DBs has different access methods to the data, OLTP databases will basically have a variant of B-Trees, where as the Key-value store will have a variant of LSM Trees or a different one. EOD we are trying to fetch a data that is closer to our use case with different DBs.</li>
+</ul>
+</li>
+<li><strong>Buffer</strong>
+<ul>
+<li>Instead of using the Disk always to manipulate the data and flush it to disk every time, we use buffers to store some of the changes of data(pages) in the memory to reduce the disk I/O time(because every time you touch a disk it will take time ), by flushing it periodically or in specific instances(memory buffer full).</li>
+</ul>
+</li>
+<li><strong>Recovery</strong>
+<ul>
+<li>Recovery is one of the most important thing an OLTP might provide(Not sure about OLAP). At a specific point of time or middle of a transaction or middle writing the data is written to disk a issue might occur in the machine and crashes the database.</li>
+<li> The crazier part is to make sure that every single change that is written to the database(even though it is in memory) should be recoverd. This part is handled by the log we used to put when an execution happens.</li>
+<li>Database will read the log, and make the delta or "not finished" changes to the disk when it's comes to online.</li>
+</ul>
+</li>
+</ul>
+<h3>Memory vs Disk databases</h3>
+<p>    <strong>Memory Databases</strong></p>
+<p>        TBH Memory databases are meant to be fast due to the in memeory data structures, there are various ways you could have your data and the access time over the data in memory is so fast. But Memory is <a href="https://en.wikipedia.org/wiki/Memory_hierarchy">costly</a> and less durable comaritive to Disk databases.</p>
+<p>        When a database crash or the machine restarts all the data will be gone in memory databases... Poofff...</p>
+<p>        Example: Redis</p>
+<p>    <strong>Disk Databases</strong></p>
+<p>        But when it comes to disk databases they are comparitively slow to  memory databases... but non-volatile(i.e the data will be stored in files )so we can get the data back even after a crash or machine restart.</p>
+<p>        Disk is so cheap when it compared to memory, and disk access time will be larger.</p>
+<p>        It is so difficult to maintain or manipulate over the disk, because In memory databases the free space / memory will be easily managed by the OS itself(Think of garbage collection, or freeing a pointer) . But in Disk databases need to maintain the free space and maintain the sanity and utilize most of the disk by the database itself.</p>
+<p>        And it is very costly and time consuming to look into disk(IO).</p>
+<p>        Example: Mysql and Postgres</p>
+<p> </p>
+<h2>Row-Based layout</h2>
+<p>Row based structures are like records that are stored each other to form a table. Each record will hold the data for the entitiy.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>ID(BIGINT)</th><th>NAME(VARCHAR)</th><th>AGE(INT)</th></tr></thead><tbody><tr><td>1</td><td>Harish</td><td>22</td></tr><tr><td>2</td><td>Sandy</td><td>23</td></tr><tr><td>3</td><td>Abi</td><td>28</td></tr></tbody></table>
+<p>It will store the whole record as it is in the disk, meaning all the user name with 'Harish' or anyone will be stored with entity itself in disk. The fetch of a record or column it will fetch the whole row from the disk. That is why, If I want to take only the age of a user will be costlier, since the whole record will be read to take only the age column.</p>
+<h2>Column-oriented layout</h2>
+<p>Column based structures are storing the data column wise(pretty simple right?), Comparing the earlier row based table. Each of the column will be stored indudivaly...</p>
+<p><code>ID={1, 2, 3}</code></p>
+<p><code>NAME={'Harish', 'Sandy', 'Abi'}</code></p>
+<p><code>AGE={22,23,28}</code></p>
+<p>Since each and every column has it's own data type, we can easily compress the data and store it. So it will have lesser disk space compared to the Disk based layout. It will be most used for analytical purpose, since the whole column is stored, we can easily use SUM(AGE) or AVG(AGE) directly, it will fetch only the respective column, Instead of fetching the whole row.</p>
+<h2>Wide column layout.</h2>
+<p>This is a pretty trick one. This databases are only  used for Data warehousing(storing past data) and Data set collection. It will have tables that has as many columns as possible, The tables will have column family, where columns are clubbed together to have a row key(It might sound complex tho)</p>
+<p>You can read more about this in this <a href="https://dandkim.com/wide-column-databases/">website</a>. Explained very well in detail.</p>
+<p>To take it to simple anology, I can show how the data will be present in context of programing Java and Go</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">#Java</span></span>
+<span class="line"><span style="color:#ADBAC7">Map</span><span style="color:#F47067">&lt;</span><span style="color:#ADBAC7">Row,Map</span><span style="color:#F47067">&lt;</span><span style="color:#ADBAC7">Column,Value</span><span style="color:#F47067">&gt;&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ADBAC7">#Go</span></span>
+<span class="line"><span style="color:#ADBAC7">map[Row]map[Column]Value</span></span>
+<span class="line"></span></code></pre>
+<p><strong>Crazy Fact: </strong>Google Earth , Google maps, crawler for search engine and Google analytics use this type  database to store maps and analytics data</p>
+<p>If you want to have indepth conceptual understanding, the <a href="https://static.googleusercontent.com/media/research.google.com/en//archive/bigtable-osdi06.pdf">BigTable paper</a> will be the correct place. (IG I should read it fully)</p>
+<h2>Data Files</h2>
+<p>Data files are the files that holds the data of the database. Which can be of three types and categorized to two -&gt; clustered index and non clustered index.</p>
+<ol>
+<li>index-organized files</li>
+<li>heap-organized files</li>
+<li>hash-organized files</li>
+</ol>
+<h3>Index organized files</h3>
+<p>Index organnized files stores the data records itself, when they search the data, Instead of store their location where to get the data they actually store the data.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">Data in Index</span></span>
+<span class="line"><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">12</span><span style="color:#ADBAC7">, (record</span><span style="color:#F47067">=</span><span style="color:#ADBAC7">{</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">,</span><span style="color:#96D0FF">"Harish"</span><span style="color:#ADBAC7">,</span><span style="color:#6CB6FF">23</span><span style="color:#ADBAC7">})]</span></span>
+<span class="line"></span></code></pre>
+<p>Which is quite good for some extent. because If we store the data in the index itself of we don't need to have disk I/O twice(one for searching in index file and another for data file)</p>
+<p>The pros extended to have easier range scans(clustered Index-&gt; data sorted), just scoop the records because every record will be aranged in leaf nodes and easier to maintain.</p>
+<p>But Inserts will be slower since we need to rebalance the whole structure in disk. Which is not optimal for Heavy writes.</p>
+<p>Example: MySQL(InnoDB engine)</p>
+<h3>Heap-Organized files</h3>
+<p>Heap organized files are like storing the data as it is with respect to the write order in the heap files(Non clustered Index-&gt; data without sorted). Yeah they are very useful for write friendly.</p>
+<p>They won't look back the writes, they just append it.</p>
+<p>How to read the files ?  A seperate index file will be maintained where the actuall data lives.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">Offsets in Index</span></span>
+<span class="line"><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">14</span><span style="color:#ADBAC7">, (record in {Page</span><span style="color:#F47067">=</span><span style="color:#6CB6FF">23</span><span style="color:#ADBAC7">,Offset</span><span style="color:#F47067">=0x</span><span style="color:#6CB6FF">232E</span><span style="color:#ADBAC7">})]</span></span>
+<span class="line"></span></code></pre>
+<p>Better for writes, since the write will be appened and later the data may be changed</p>
+<p>Example: PostgreSQL</p>
+<h3>Hash Organized files</h3>
+<p>Hash organized files simply stores / fetches by the record hash . When a record is inserted the hash function will hash the record and store it in any of the buckets. Simplified example will be</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">#Hash function to determine the bucket</span></span>
+<span class="line"><span style="color:#DCBDFB">hash</span><span style="color:#ADBAC7">(record{Table:Genie, Id:</span><span style="color:#6CB6FF">2</span><span style="color:#ADBAC7">}) </span><span style="color:#F47067">=</span><span style="color:#6CB6FF"> 4</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> Bucket </span><span style="color:#6CB6FF">4</span></span>
+<span class="line"></span></code></pre>
+<p>Then the bucket mapping will also be stored in the disk. And finally the record is stored in the disk. This is also cool when it is write only and better for distribution around the network, single point lookup will be faster.</p>
+<p>But not used for multi scans, because we need to calculate for each and every id.</p>
+<h2>Summary</h2>
+<p>This is the internals of database systems store or actually work, each has its own pros and cons. We need to decide which one is suitable for our systems.</p>
+<p>Will see you in next chapters :-)</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><h2 class="text-2xl font-bold mb-6 font-sans text-[#e6e6e6]">Comments</h2><giscus-widget repo="LakshimiRam-073/portfolio2.0" repoid="R_kgDORpPTlA" category="General" categoryid="DIC_kwDORpPTlM4C6UZb" mapping="pathname" strict="0" reactionsenabled="1" emitmetadata="0" inputposition="bottom" theme="dark_dimmed" lang="en" loading="lazy" host="https://giscus.app"></giscus-widget><p class="mt-4 text-xs text-neutral-400 text-center">Comments are powered by <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="underline hover:text-[#e6e6e6]">Giscus</a>. Sign in with GitHub to leave a comment.</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 font-sans no-underline" href="/articles">← Back to Articles</a></div></article></div></main><footer class="border-t border-[#222] bg-[#121212] py-8 mt-12"><div class="max-w-4xl mx-auto px-6 text-center text-neutral-500 text-sm"><p>© 2026. All rights reserved.</p></div></footer></div></div>
+  
+
+</body></html>

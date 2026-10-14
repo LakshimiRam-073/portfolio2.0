@@ -1,4 +1,8 @@
 {
+  "framework": null,
+  "buildCommand": "echo 'Using committed dist/ (prerendered locally)'",
+  "installCommand": "echo 'Skip install — static dist is committed'",
+  "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [

@@ -1,0 +1,730 @@
+<!DOCTYPE html><html lang="en" class="dark" style="background-color:#121212"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System I/O - How Linux Reads and Writes Files | Stupid Notes</title>
+    <meta name="description" content="Deep-dive technical articles on databases, system design, and low-level engineering.">
+    <!-- Per-page OG/Twitter tags are injected by react-helmet-async and baked in at
+         prerender time. Keep none here to avoid duplicate/stale tags for crawlers. -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <script type="module" crossorigin="" src="/assets/index-Tc-Mr3sO.js"></script>
+    <link rel="stylesheet" crossorigin="" href="/assets/index-CmaudYtK.css">
+  <meta property="og:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta property="og:site_name" content="Stupid Notes" data-rh="true"><meta name="twitter:card" content="summary_large_image" data-rh="true"><meta name="twitter:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta name="description" content="A deep dive into how System I/O works in Linux - from file descriptors to kernel data structures, fork sharing, dup2 redirection, and pipes." data-rh="true"><meta property="og:title" content="System I/O - How Linux Reads and Writes Files" data-rh="true"><meta property="og:description" content="A deep dive into how System I/O works in Linux - from file descriptors to kernel data structures, fork sharing, dup2 redirection, and pipes." data-rh="true"><meta property="og:type" content="article" data-rh="true"><meta property="og:url" content="https://stupidnotes.in/articles/Inside-Internals/system_io" data-rh="true"><meta name="twitter:title" content="System I/O - How Linux Reads and Writes Files" data-rh="true"><meta name="twitter:description" content="A deep dive into how System I/O works in Linux - from file descriptors to kernel data structures, fork sharing, dup2 redirection, and pipes." data-rh="true"><meta property="article:published_time" content="2026-04-24" data-rh="true"></head>
+  <body>
+    <div id="root"><div class="bg-[#121212] text-[#e6e6e6] antialiased min-h-screen flex flex-col"><header class="sticky top-0 z-40 bg-[#121212]/80 backdrop-blur-md border-b border-[#222]"><nav class="max-w-[1100px] w-full mx-auto px-8 py-4 flex justify-between items-center max-md:px-6 max-sm:px-4"><a class="text-base font-medium text-[#e6e6e6] hover:opacity-70 transition-opacity font-sans" href="/">stupidnotes.in</a><div class="flex gap-5 items-center text-sm font-sans"><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/about">About</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/articles">Articles</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/resources">Resources</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/ai-conduct">AI Conduct</a></div></nav></header><main class="flex-1"><div class="blog-container min-h-screen py-12 md:py-16"><article class="markdown"><div class="mb-10"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 mb-6 font-sans no-underline" href="/articles">← Back to Articles</a><span class="block text-xs font-medium uppercase tracking-wider text-neutral-300 mb-3 font-sans">Inside Internals</span><h1 class="text-3xl sm:text-4xl md:text-[2.625rem] font-bold tracking-tight mb-4 leading-tight font-display text-[#e6e6e6]">System I/O - How Linux Reads and Writes Files</h1><div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-neutral-400 text-sm font-sans"><span>Lakshimi Raman S</span><span>·</span><time datetime="2026-04-24">Apr 24, 2026</time><span>·</span><span>26 min read</span></div></div><p class="text-lg md:text-xl leading-relaxed text-neutral-400 mb-10 border-l-[3px] border-[#2a2a2a] pl-5 py-1">A deep dive into how System I/O works in Linux - from file descriptors to kernel data structures, fork sharing, dup2 redirection, and pipes.</p><div class="max-w-none">
+<h1>How Linux Reads and Writes Files</h1>
+<hr>
+<p>What is the System I/O? It's just the input and output of the file. That's it. The way the OS and kernel programs do the file reading and writing. How do you store a file? How do you read a file? How do you write a file? How do you open and close? It's just the ways of kernel things right?</p>
+<p>But here's the fun part. Did you know that <strong>network is just a file</strong>? And <strong>IPC (Inter-Process Communication) is also just a file</strong>? They are going to communicate with just a file. Yes, literally. The network is going to use the file to input the data and another program is going to read the file and take the data. It's just that simple.</p>
+<p><strong>Everything in Linux is a file.</strong> And once you understand how files work at the system level, you pretty much understand how most of Linux works.</p>
+<p>Note: This is my understanding from the CMU lecture on System I/O and some of my own findings. Don't consider it as a perfect replica.</p>
+<h2>Two Types of I/O</h2>
+<hr>
+<p>So there are 2 types of I/O - <strong>Unix I/O</strong> and <strong>Standard I/O</strong>.</p>
+<p>What is it? What is it matter? Which one comes first? What is the advantage of both?</p>
+<p>Okay let's not worry about which came first. The important thing is: <strong>Unix I/O is the base for all I/O operations.</strong> Back in the day, we were using Unix I/O directly. Later, the GNU libraries came and gave us Standard I/O (like <code>printf</code>, <code>fopen</code>, etc.) as a wrapper on top.</p>
+<p>I'll get into the details later. For now just know these basic functions:</p>
+<p><strong>Unix I/O:</strong> <code>open</code>, <code>close</code>, <code>read</code>, <code>write</code>, <code>lseek</code>, <code>stat</code></p>
+<p><strong>Standard I/O:</strong> <code>fopen</code>, <code>fclose</code>, <code>fread</code>, <code>fwrite</code>, <code>fprintf</code>, <code>fscanf</code></p>
+<p>And there's this important thing called a <strong>file descriptor</strong>. For now, just think of your file descriptor as a token to access a file. I'll explain what it actually is and how it works in the next section.</p>
+<p>So when you open a file, the OS gives you a file token (file descriptor). With that token, you can read, write, or seek to any offset in the file. You can use <code>lseek</code> to jump to a specific position. Pretty straightforward right?</p>
+<h3>Why Do We Need 2 I/Os?</h3>
+<p>Actually, there are not 2 separate I/Os. The <strong>Standard I/O is basically a wrapper of Unix I/O.</strong> The only question is - why do we need a wrapper?</p>
+<p>Think of it this way. Unix I/O is just pure system calls, pure kernel system calls. And each system call will take at least <strong>10,000 clock cycles</strong> to access a single file or something. That's expensive.</p>
+<p>Let me give you an example to understand why.</p>
+<p>If you want to read data from a terminal using Unix I/O, you have to loop through character by character and get the data. Here's the code:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">char</span><span style="color:#ADBAC7"> c;</span></span>
+<span class="line"><span style="color:#F47067">while</span><span style="color:#ADBAC7"> (</span><span style="color:#DCBDFB">read</span><span style="color:#ADBAC7">(STDIN_FILENO, </span><span style="color:#F47067">&amp;</span><span style="color:#F69D50">c</span><span style="color:#ADBAC7">, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">!=</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">) {</span></span>
+<span class="line"><span style="color:#DCBDFB">    write</span><span style="color:#ADBAC7">(STDOUT_FILENO, </span><span style="color:#F47067">&amp;</span><span style="color:#ADBAC7">c, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span></code></pre>
+<p>See this? We are reading <strong>byte by byte</strong>. Each <code>read</code> call is a system call. Each <code>write</code> call is a system call. So if each system call takes at least 10,000 CPU cycles, we are burning cycles for every single byte. That is insanely costly. Having to do it as single byte syscalls is a horror show.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">Reading </span><span style="color:#96D0FF">"Hello</span><span style="color:#F47067">\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7"> byte by byte:</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">  read</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">&amp;</span><span style="color:#ADBAC7">c, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">)  </span><span style="color:#F47067">-&gt;</span><span style="color:#96D0FF"> 'H'</span><span style="color:#F47067">    ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"><span style="color:#DCBDFB">  write</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">&amp;</span><span style="color:#ADBAC7">c, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">-&gt;</span><span style="color:#96D0FF"> 'H'</span><span style="color:#F47067">    ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"><span style="color:#DCBDFB">  read</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">&amp;</span><span style="color:#ADBAC7">c, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">)  </span><span style="color:#F47067">-&gt;</span><span style="color:#96D0FF"> 'e'</span><span style="color:#F47067">    ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"><span style="color:#DCBDFB">  write</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">&amp;</span><span style="color:#ADBAC7">c, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">-&gt;</span><span style="color:#96D0FF"> 'e'</span><span style="color:#F47067">    ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"><span style="color:#DCBDFB">  read</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">&amp;</span><span style="color:#ADBAC7">c, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">)  </span><span style="color:#F47067">-&gt;</span><span style="color:#96D0FF"> 'l'</span><span style="color:#F47067">    ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"><span style="color:#DCBDFB">  write</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">&amp;</span><span style="color:#ADBAC7">c, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">) </span><span style="color:#F47067">-&gt;</span><span style="color:#96D0FF"> 'l'</span><span style="color:#F47067">    ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"><span style="color:#ADBAC7">  ...</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Total </span><span style="color:#F47067">for</span><span style="color:#96D0FF"> "Hello</span><span style="color:#F47067">\n</span><span style="color:#96D0FF">"</span><span style="color:#F47067"> =</span><span style="color:#6CB6FF"> 12</span><span style="color:#ADBAC7"> syscalls </span><span style="color:#F47067">=</span><span style="color:#F47067"> ~</span><span style="color:#6CB6FF">120</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"></span></code></pre>
+<p>So Unix I/O is just the base of every I/O that you are going to write. You can write your own I/O on top of it, but Standard I/O is basically the wrapper of Unix I/O which handles this <strong>buffering</strong> case.</p>
+<p>Use <code>strace</code> to know the internal syscalls happening. Used <code>strace ./main</code>to know the system calls.</p>
+<p><img src="/assets/tEicUzZBCVCMzbWJYHYPVvtROWCTYm8k2egI-phcDIE=.png" alt=""></p>
+<p>The same example with Standard I/O? You just use <code>printf</code>. The <code>printf</code> function is actually a Standard I/O function. It will buffer the characters and wait. Before the <code>\n</code> (newline), it buffers everything into memory. When it sees the <code>\n</code>, it flushes the whole buffer in <strong>one single <strong><strong><code>write</code></strong></strong> syscall</strong>.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">Using</span><span style="color:#DCBDFB"> printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"Hello</span><span style="color:#F47067">\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7">):</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">  printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"H"</span><span style="color:#ADBAC7">)  -&gt; </span><span style="color:#F69D50">buffer</span><span style="color:#6CB6FF">    0</span><span style="color:#ADBAC7"> syscalls</span></span>
+<span class="line"><span style="color:#DCBDFB">  printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"e"</span><span style="color:#ADBAC7">)  -&gt; </span><span style="color:#F69D50">buffer</span><span style="color:#6CB6FF">    0</span><span style="color:#ADBAC7"> syscalls</span></span>
+<span class="line"><span style="color:#DCBDFB">  printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"l"</span><span style="color:#ADBAC7">)  -&gt; </span><span style="color:#F69D50">buffer</span><span style="color:#6CB6FF">    0</span><span style="color:#ADBAC7"> syscalls</span></span>
+<span class="line"><span style="color:#DCBDFB">  printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"l"</span><span style="color:#ADBAC7">)  -&gt; </span><span style="color:#F69D50">buffer</span><span style="color:#6CB6FF">    0</span><span style="color:#ADBAC7"> syscalls</span></span>
+<span class="line"><span style="color:#DCBDFB">  printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"o"</span><span style="color:#ADBAC7">)  -&gt; </span><span style="color:#F69D50">buffer</span><span style="color:#6CB6FF">    0</span><span style="color:#ADBAC7"> syscalls</span></span>
+<span class="line"><span style="color:#DCBDFB">  printf</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"</span><span style="color:#F47067">\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7">) -&gt; </span><span style="color:#F69D50">FLUSH</span><span style="color:#F47067">!</span><span style="color:#6CB6FF">     1</span><span style="color:#ADBAC7"> write syscall </span><span style="color:#F47067">=</span><span style="color:#F47067"> ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Total </span><span style="color:#F47067">=</span><span style="color:#6CB6FF"> 1</span><span style="color:#ADBAC7"> syscall </span><span style="color:#F47067">=</span><span style="color:#F47067"> ~</span><span style="color:#6CB6FF">10</span><span style="color:#ADBAC7">,</span><span style="color:#F47067">0</span><span style="color:#6CB6FF">00</span><span style="color:#ADBAC7"> cycles</span></span>
+<span class="line"></span></code></pre>
+<p><img src="/assets/4r3NPxrXQqJ6tlqHJW1Ou9V0rfsKslnLlpEAPljn9Vo=.png" alt=""></p>
+<p>See the difference? Pretty bad right? 120,000 cycles vs 10,000 cycles. That's 12x more expensive just for "Hello".</p>
+<p>You can actually verify this using <code>strace</code>. If you run <code>strace</code> on a program using Unix I/O byte by byte, you can see how many syscalls it makes. And when you use Standard I/O, it makes <strong>one syscall per line</strong>.</p>
+<p>Also, if you're using Unix I/O directly, you have to manage the flush function yourself. You have to do it yourself. But in Standard I/O, it's already handling it on its own. So we don't have to worry about that.</p>
+<h3>Unix I/O vs Standard I/O Comparison</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Feature</th><th>Unix I/O</th><th>Standard I/O</th></tr></thead><tbody><tr><td>Functions</td><td><code>open</code>, <code>read</code>, <code>write</code>, <code>close</code>, <code>lseek</code></td><td><code>fopen</code>, <code>fprintf</code>, <code>fread</code>, <code>fclose</code></td></tr><tr><td>Returns</td><td>File descriptor (int)</td><td><code>FILE *</code> pointer</td></tr><tr><td>Buffering</td><td>No (you manage it)</td><td>Yes (automatic)</td></tr><tr><td>Seeking</td><td>Manual with <code>lseek</code></td><td><code>fseek</code> / <code>ftell</code></td></tr><tr><td>Flushing</td><td>You handle it</td><td>Automatic on <code>\n</code>, <code>fflush()</code>, or <code>exit()</code></td></tr><tr><td>Short count handling</td><td>You handle it</td><td>Handled for you</td></tr><tr><td>Signal safe</td><td>Yes</td><td>No</td></tr><tr><td>Network safe</td><td>Yes</td><td>No</td></tr><tr><td>Control</td><td>Full control</td><td>Less control, more convenience</td></tr></tbody></table>
+<p>So to summarize - Unix I/O gives you a standard way of doing disk operations directly. You don't need buffering? Cool. You manage everything yourself. Standard I/O automatically comes with buffering, seeking, flushing out of the box.</p>
+<p>But when you use Unix I/O, it's more flexible. You have your own buffering management, seeking, flushing, end of file handling, short reads... I'll talk about short reads later in this blog.</p>
+<h2>The Three Kernel Tables</h2>
+<hr>
+<p>Now here comes the really interesting part. How is your file actually stored and managed in the Linux system? I always wondered about this.</p>
+<p>There are <strong>3 tables</strong> you have to know about. These tables are everything.</p>
+<ol>
+<li><strong>Per-Process File Descriptor Table</strong></li>
+<li><strong>System-Wide Open File Table</strong></li>
+<li><strong>V-Node / Inode Table</strong></li>
+</ol>
+<p>Let's go one by one.</p>
+<h3>But First - stdin, stdout, stderr</h3>
+<p>Before I explain the file descriptor table, let me tell you something important that I should have mentioned earlier.</p>
+<p>Every process in Linux starts with <strong>3 files already open</strong>:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">+-----+------------------+</span></span>
+<span class="line"><span style="color:#F47067">|</span><span style="color:#ADBAC7"> fd  </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> What it is       </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">+-----+------------------+</span></span>
+<span class="line"><span style="color:#F47067">|</span><span style="color:#6CB6FF">  0</span><span style="color:#F47067">  |</span><span style="color:#DCBDFB"> stdin</span><span style="color:#ADBAC7">  (input)   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">|</span><span style="color:#6CB6FF">  1</span><span style="color:#F47067">  |</span><span style="color:#DCBDFB"> stdout</span><span style="color:#ADBAC7"> (output)  </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">|</span><span style="color:#6CB6FF">  2</span><span style="color:#F47067">  |</span><span style="color:#DCBDFB"> stderr</span><span style="color:#ADBAC7"> (error)   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">+-----+------------------+</span></span>
+<span class="line"></span></code></pre>
+<p>Yes, <code>stdin</code>, <code>stdout</code>, and <code>stderr</code> are just files. They are file descriptors 0, 1, and 2 in every single process. When you do <code>printf("hello")</code>, it's writing to file descriptor 1 (stdout). When you do <code>scanf</code>, it's reading from file descriptor 0 (stdin).</p>
+<p>This is going to be super important when we talk about <code>dup2</code> and I/O redirection later. Keep this in mind.</p>
+<h3>Table 1: Per-Process File Descriptor Table</h3>
+<p>Each and every process will have a file descriptor table. It's actually an <strong>array of pointers</strong>. Currently, I've seen that a process can hold around 128 file descriptors (it can be expanded tho, <code>ulimit -n</code> will tell you the limit).</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  Per</span><span style="color:#F47067">-</span><span style="color:#ADBAC7">Process File Descriptor Table</span></span>
+<span class="line"><span style="color:#ADBAC7">  (one per process)</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Index    Pointer</span></span>
+<span class="line"><span style="color:#F47067">  +-----+-----------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  0</span><span style="color:#F47067">  |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> [stdin entry]     </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  1</span><span style="color:#F47067">  |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> [stdout entry]    </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  2</span><span style="color:#F47067">  |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> [stderr entry]    </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  3</span><span style="color:#F47067">  |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> [some file entry] </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  4</span><span style="color:#F47067">  |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> [another file]    </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  5</span><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> NULL</span><span style="color:#F47067">                 |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  6</span><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> NULL</span><span style="color:#F47067">                 |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> ... </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> ...                  </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +-----+-----------------+</span></span>
+<span class="line"></span></code></pre>
+<p>Each slot stores a <strong>pointer</strong> to an entry in the System-Wide Open File Table. When you call <code>open()</code>, the kernel scans this array for the first NULL entry, fills it in, and returns you the index. That index IS your file descriptor.</p>
+<p>So when someone says <code>fd = 3</code>, it literally means "index 3 in your process's file descriptor array."</p>
+<h3>Table 2: System-Wide Open File Table</h3>
+<p>This is a table that is maintained by the system. It knows how many files have been opened, and it maintains all the information about open file sessions.</p>
+<p>Each entry in this table stores:</p>
+<ul>
+<li><strong>File position (offset)</strong> - where are you currently in the file</li>
+<li><strong>Mode</strong> - whether the file was opened for reading, writing, or both (like <code>O_RDONLY</code>, <code>O_RDWR</code>)</li>
+<li><strong>Reference count</strong> - how many file descriptors are pointing to this entry (this one is crucial, I'll explain why)</li>
+<li><strong>Pointer to the inode</strong></li>
+</ul>
+<p>The pointer from your FD table points to an entry in this system-wide open file table. And this open file table entry points to the actual inode.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  System</span><span style="color:#F47067">-</span><span style="color:#ADBAC7">Wide Open File Table</span></span>
+<span class="line"><span style="color:#ADBAC7">  (shared by all processes)</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#F47067">  +--------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> Entry A                        </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   offset: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067">                    |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   mode: O_RDONLY               </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   refcnt: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067">                    |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   inode_ptr </span><span style="color:#F47067">-&gt;</span><span style="color:#ADBAC7"> [Inode #</span><span style="color:#6CB6FF">4521</span><span style="color:#ADBAC7">]   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +--------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> Entry B                        </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   offset: </span><span style="color:#6CB6FF">120</span><span style="color:#F47067">                  |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   mode: O_RDWR                 </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   refcnt: </span><span style="color:#6CB6FF">2</span><span style="color:#F47067">                    |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   inode_ptr </span><span style="color:#F47067">-&gt;</span><span style="color:#ADBAC7"> [Inode #</span><span style="color:#6CB6FF">8803</span><span style="color:#ADBAC7">]   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +--------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> ...                            </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +--------------------------------+</span></span>
+<span class="line"></span></code></pre>
+<p>The reference count is important. It tells how many processes (or file descriptors) are using this entry. This happens in <code>fork()</code> - I will explain how it gets used later.</p>
+<h3>Table 3: V-Node / Inode Table</h3>
+<p>This is the table where the actual file information is stored. If you take a file, it will have an entry in the inode table.</p>
+<p>It contains:</p>
+<ul>
+<li><strong>File stats</strong> - who has permission, who can access it</li>
+<li><strong>Owner, Group, Permissions</strong> (the stuff you see in <code>ls -l</code>)</li>
+<li><strong>File size</strong></li>
+<li><strong>Timestamps</strong> (access, modify, change)</li>
+<li><strong>Block mapping</strong> - which logical blocks are mapped to which physical blocks on disk</li>
+<li><strong>Reference count</strong> - how many open file table entries are pointing to this inode</li>
+</ul>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  V</span><span style="color:#F47067">-</span><span style="color:#ADBAC7">Node </span><span style="color:#F47067">/</span><span style="color:#ADBAC7"> Inode Table</span></span>
+<span class="line"><span style="color:#ADBAC7">  (shared by all processes)</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#F47067">  +--------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> Inode #</span><span style="color:#6CB6FF">4521</span><span style="color:#F47067">                    |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   owner: lakshimi              </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   perms: rwxr</span><span style="color:#F47067">-</span><span style="color:#ADBAC7">xr</span><span style="color:#F47067">-</span><span style="color:#ADBAC7">x            </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   size: </span><span style="color:#6CB6FF">4096</span><span style="color:#ADBAC7"> bytes             </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   timestamps: ...              </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   refcnt: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067">                    |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">   block_map:                   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">     [</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">] -&gt; phys block </span><span style="color:#6CB6FF">567</span><span style="color:#F47067">      |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">     [</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">] -&gt; phys block </span><span style="color:#6CB6FF">2</span><span style="color:#F47067">        |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">     [</span><span style="color:#6CB6FF">2</span><span style="color:#ADBAC7">] -&gt; phys block </span><span style="color:#6CB6FF">881</span><span style="color:#F47067">      |</span></span>
+<span class="line"><span style="color:#F47067">  +--------------------------------+</span></span>
+<span class="line"></span></code></pre>
+<p>The inode actually stores on disk. When you access an open file, it goes through the system open file table and loads the inode entry into memory.</p>
+<p>Here's the cool part about the reference count. If the reference count is greater than 1, the inode gets <strong>pinned in the page cache</strong>. It won't get evicted by the LRU policy. So it stays fast. But if the reference count drops to 0, it will automatically get evicted by the LRU eviction policy of the OS page cache. It will stay for a while and then get evicted.</p>
+<h3>The Big Picture - All 3 Tables Together</h3>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  Process A                   Kernel                           Disk</span></span>
+<span class="line"><span style="color:#ADBAC7">  FD Table</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span><span style="color:#ADBAC7">                Open File Table              Inode Table</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 0</span><span style="color:#F47067">   |--+</span><span style="color:#F47067">          +------------------+</span><span style="color:#F47067">          +------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 1</span><span style="color:#F47067">   |--+---&gt;</span><span style="color:#F47067">      |</span><span style="color:#ADBAC7"> offset: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067">        |</span><span style="color:#F47067">          |</span><span style="color:#ADBAC7"> Inode #</span><span style="color:#6CB6FF">4521</span><span style="color:#F47067">      |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 2</span><span style="color:#F47067">   |--+</span><span style="color:#F47067">          |</span><span style="color:#ADBAC7"> mode: O_RDONLY   </span><span style="color:#F47067">|</span><span style="color:#F47067">          |</span><span style="color:#ADBAC7">   owner: root    </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 3</span><span style="color:#F47067">   |------------&gt;|</span><span style="color:#ADBAC7"> refcnt: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067">        |---------&gt;|</span><span style="color:#ADBAC7">   size: </span><span style="color:#6CB6FF">2048</span><span style="color:#F47067">     |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 4</span><span style="color:#F47067">   |--+</span><span style="color:#F47067">          |</span><span style="color:#ADBAC7"> inode: #</span><span style="color:#6CB6FF">4521</span><span style="color:#F47067">     |</span><span style="color:#F47067">          |</span><span style="color:#ADBAC7">   blocks: [...]  |</span></span>
+<span class="line"><span style="color:#ADBAC7">  +-----+  |          +------------------+          |   refcnt: 2      |</span></span>
+<span class="line"><span style="color:#ADBAC7">            |                                        +------------------+</span></span>
+<span class="line"><span style="color:#ADBAC7">            |          +------------------+                  ^</span></span>
+<span class="line"><span style="color:#ADBAC7">            +---------&gt;</span><span style="color:#F47067">|</span><span style="color:#F47067"> offset:</span><span style="color:#F47067"> 100</span><span style="color:#F47067">      |</span><span style="color:#F47067">                  |</span></span>
+<span class="line"><span style="color:#F47067">                       |</span><span style="color:#F47067"> mode:</span><span style="color:#F47067"> O_RDWR</span><span style="color:#F47067">     |------------------+</span></span>
+<span class="line"><span style="color:#F47067">                       |</span><span style="color:#F47067"> refcnt:</span><span style="color:#F47067"> 1</span><span style="color:#F47067">        |</span></span>
+<span class="line"><span style="color:#F47067">                       |</span><span style="color:#F47067"> inode:</span><span style="color:#F47067"> #4521</span><span style="color:#F47067">     |</span></span>
+<span class="line"><span style="color:#F47067">                       +------------------+</span></span>
+<span class="line"></span></code></pre>
+<p>Notice here - fd 3 and fd 4 both point to the same inode (#4521) but through <strong>different open file table entries</strong>. That means they have <strong>independent offsets</strong>. So reading from fd 3 won't affect the position of fd 4. This is what happens when you <code>open()</code> the same file twice.</p>
+<h2>Inodes and Block Mapping</h2>
+<hr>
+<p>The inode stores the data information like file stats and permissions, but it also stores <strong>which logical blocks are mapped to which physical blocks on disk</strong>.</p>
+<p>If you're going to access a specific offset in a file, you have to know which disk block that offset lives in. This mapping is stored in the inode.</p>
+<h3>Direct Block Mapping</h3>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  Inode Block </span><span style="color:#DCBDFB">Map</span><span style="color:#ADBAC7"> (Direct Pointers)</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Logical   Physical</span></span>
+<span class="line"><span style="color:#ADBAC7">  Block     Block</span></span>
+<span class="line"><span style="color:#F47067">  +-----+-----------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  0</span><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> blk </span><span style="color:#6CB6FF">567</span><span style="color:#F47067">   |</span><span style="color:#F47067">  &lt;-</span><span style="color:#ADBAC7"> first </span><span style="color:#6CB6FF">4</span><span style="color:#F47067">KB</span><span style="color:#ADBAC7"> of file is at disk block </span><span style="color:#6CB6FF">567</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  1</span><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> blk </span><span style="color:#6CB6FF">2</span><span style="color:#F47067">     |</span><span style="color:#F47067">  &lt;-</span><span style="color:#ADBAC7"> next </span><span style="color:#6CB6FF">4</span><span style="color:#F47067">KB</span><span style="color:#ADBAC7"> is at disk block </span><span style="color:#6CB6FF">2</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  2</span><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> blk </span><span style="color:#6CB6FF">881</span><span style="color:#F47067">   |</span><span style="color:#F47067">  &lt;-</span><span style="color:#ADBAC7"> next </span><span style="color:#6CB6FF">4</span><span style="color:#F47067">KB</span><span style="color:#ADBAC7"> at block </span><span style="color:#6CB6FF">881</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  3</span><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> blk </span><span style="color:#6CB6FF">44</span><span style="color:#F47067">    |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">  4</span><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> blk </span><span style="color:#6CB6FF">109</span><span style="color:#F47067">   |</span></span>
+<span class="line"><span style="color:#F47067">  +-----+-----------+</span></span>
+<span class="line"></span></code></pre>
+<p>For small files, this is enough. But what if you have a really large file? You can't just keep adding direct pointers forever.</p>
+<h3>Indirect Pointers (for Large Files)</h3>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  Inode</span></span>
+<span class="line"><span style="color:#F47067">  +-------+--------------------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">   0</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> phys block </span><span style="color:#6CB6FF">567</span><span style="color:#ADBAC7">      (DIRECT)            </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">   1</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> phys block </span><span style="color:#6CB6FF">2</span><span style="color:#ADBAC7">        (DIRECT)            </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">   2</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> phys block </span><span style="color:#6CB6FF">881</span><span style="color:#ADBAC7">      (DIRECT)            </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">   3</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> phys block </span><span style="color:#6CB6FF">44</span><span style="color:#ADBAC7">       (DIRECT)            </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">   4</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> phys block </span><span style="color:#6CB6FF">109</span><span style="color:#ADBAC7">      (DIRECT)            </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +-------+--------------------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF">   5</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> INDIRECT block </span><span style="color:#6CB6FF">397</span><span style="color:#F47067">                      |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067">       |</span><span style="color:#ADBAC7">    Contains: [blk </span><span style="color:#6CB6FF">1020</span><span style="color:#ADBAC7">, blk </span><span style="color:#6CB6FF">2041</span><span style="color:#ADBAC7">, ...]     |</span></span>
+<span class="line"><span style="color:#ADBAC7">  |       |    Each points to actual data blocks        |</span></span>
+<span class="line"><span style="color:#ADBAC7">  +-------+--------------------------------------------+</span></span>
+<span class="line"><span style="color:#ADBAC7">  |   6   | -&gt; </span><span style="color:#F47067">DOUBLE</span><span style="color:#F47067"> INDIRECT</span><span style="color:#F47067"> block</span><span style="color:#F47067">                   |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067">       |</span><span style="color:#F47067">    -&gt;</span><span style="color:#F47067"> page</span><span style="color:#F47067"> of</span><span style="color:#F47067"> pointers</span><span style="color:#F47067">                     |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067">       |</span><span style="color:#F47067">       -&gt;</span><span style="color:#F47067"> pages</span><span style="color:#F47067"> of</span><span style="color:#F47067"> pointers</span><span style="color:#F47067">                 |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067">       |</span><span style="color:#F47067">          -&gt;</span><span style="color:#F47067"> actual</span><span style="color:#F47067"> data</span><span style="color:#F47067"> blocks</span><span style="color:#F47067">             |</span></span>
+<span class="line"><span style="color:#F47067">  +-------+--------------------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067">   7</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#F47067"> TRIPLE</span><span style="color:#F47067"> INDIRECT</span><span style="color:#F47067"> block</span><span style="color:#F47067">                   |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067">       |</span><span style="color:#F47067">    -&gt;</span><span style="color:#F47067"> ptrs</span><span style="color:#F47067"> -&gt;</span><span style="color:#F47067"> ptrs</span><span style="color:#F47067"> -&gt;</span><span style="color:#F47067"> ptrs</span><span style="color:#F47067"> -&gt;</span><span style="color:#F47067"> data</span><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#F47067">  +-------+--------------------------------------------+</span></span>
+<span class="line"></span></code></pre>
+<p>With indirect pointers, you can address massive files. The single indirect adds one level of indirection, double indirect adds two, and triple indirect adds three. Most files are small though, so they rarely need anything beyond direct pointers.</p>
+<h2>Path Resolution and the Name Cache</h2>
+<hr>
+<p>Everything is stored on disk right? So how do we actually get to a file from <code>/home/someone/xyz/data.txt</code>? It's actually going to visit 4-5 directory inodes to resolve the full path.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  Resolving </span><span style="color:#F47067">/</span><span style="color:#ADBAC7">home</span><span style="color:#F47067">/</span><span style="color:#ADBAC7">someone</span><span style="color:#F47067">/</span><span style="color:#ADBAC7">xyz</span><span style="color:#F47067">/</span><span style="color:#ADBAC7">data.txt</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Step </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">: Read inode of </span><span style="color:#96D0FF">"/"</span><span style="color:#F47067">         -&gt;</span><span style="color:#ADBAC7"> find </span><span style="color:#96D0FF">"home"</span><span style="color:#ADBAC7"> entry</span></span>
+<span class="line"><span style="color:#ADBAC7">  Step </span><span style="color:#6CB6FF">2</span><span style="color:#ADBAC7">: Read inode of </span><span style="color:#96D0FF">"/home"</span><span style="color:#F47067">     -&gt;</span><span style="color:#ADBAC7"> find </span><span style="color:#96D0FF">"someone"</span><span style="color:#ADBAC7"> entry  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Step </span><span style="color:#6CB6FF">3</span><span style="color:#ADBAC7">: Read inode of </span><span style="color:#96D0FF">"someone"</span><span style="color:#F47067">   -&gt;</span><span style="color:#ADBAC7"> find </span><span style="color:#96D0FF">"xyz"</span><span style="color:#ADBAC7"> entry</span></span>
+<span class="line"><span style="color:#ADBAC7">  Step </span><span style="color:#6CB6FF">4</span><span style="color:#ADBAC7">: Read inode of </span><span style="color:#96D0FF">"xyz"</span><span style="color:#F47067">       -&gt;</span><span style="color:#ADBAC7"> find </span><span style="color:#96D0FF">"data.txt"</span><span style="color:#ADBAC7"> entry</span></span>
+<span class="line"><span style="color:#ADBAC7">  Step </span><span style="color:#6CB6FF">5</span><span style="color:#ADBAC7">: Read inode of </span><span style="color:#96D0FF">"data.txt"</span><span style="color:#F47067">  -&gt;</span><span style="color:#ADBAC7"> got it</span><span style="color:#F47067">!</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  That</span><span style="color:#96D0FF">'s 5 disk reads just to find one file!</span></span>
+<span class="line"></span></code></pre>
+<p>That's a lot of disk access right? So Linux uses a <strong>name cache</strong> (also called dentry cache) to speed this up.</p>
+<p>The name cache stores path-to-inode mappings in memory:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">  Name</span><span style="color:#DCBDFB"> Cache</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">in</span><span style="color:#F69D50"> memory</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#F47067">  +------------------------------+-----------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> Path                         </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> Inode     </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +------------------------------+-----------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067"> /</span><span style="color:#F47067">                            |</span><span style="color:#ADBAC7"> inode </span><span style="color:#6CB6FF">0</span><span style="color:#F47067">   |</span><span style="color:#F47067">  &lt;-</span><span style="color:#ADBAC7"> always cached</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067"> /</span><span style="color:#ADBAC7">home                        </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> inode </span><span style="color:#6CB6FF">713</span><span style="color:#F47067"> |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067"> /</span><span style="color:#ADBAC7">home</span><span style="color:#F47067">/</span><span style="color:#ADBAC7">someone                </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> inode </span><span style="color:#6CB6FF">749</span><span style="color:#F47067"> |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#F47067"> /</span><span style="color:#ADBAC7">home</span><span style="color:#F47067">/</span><span style="color:#ADBAC7">someone</span><span style="color:#F47067">/</span><span style="color:#ADBAC7">xyz            </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> inode </span><span style="color:#6CB6FF">5462</span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +------------------------------+-----------+</span></span>
+<span class="line"></span></code></pre>
+<p>Most of the time the root <code>/</code> directory will always get a cache hit. So the cache will load the root directory and always know about the children.</p>
+<p>It's actually simple. Each name is cached, and when you access a path, it checks the cache first. If it's there - great, instant access. If not, it resolves from the longest cached prefix and builds forward, caching each new entry as it goes.</p>
+<h2>Tracing <code>read(fd, buf, n)</code></h2>
+<hr>
+<p>What happens when you call a <code>read</code> function? Let me trace it step by step.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#DCBDFB">  read</span><span style="color:#ADBAC7">(fd, buf, n)</span></span>
+<span class="line"><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#ADBAC7">         v</span></span>
+<span class="line"><span style="color:#F47067">  +--</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">] Go to FD table, index by fd</span><span style="color:#F47067">-----------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">       Is there a valid pointer</span><span style="color:#F47067">?</span><span style="color:#ADBAC7"> (</span><span style="color:#F47067">not</span><span style="color:#6CB6FF"> NULL</span><span style="color:#ADBAC7">)  </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +---------------------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#ADBAC7">         v</span></span>
+<span class="line"><span style="color:#F47067">  +--</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">2</span><span style="color:#ADBAC7">] Follow pointer to Open File Table</span><span style="color:#F47067">------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">       Get current offset </span><span style="color:#F47067">and</span><span style="color:#ADBAC7"> inode pointer  </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +---------------------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#ADBAC7">         v</span></span>
+<span class="line"><span style="color:#F47067">  +--</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">3</span><span style="color:#ADBAC7">] Go to inode, use block map</span><span style="color:#F47067">-------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">       Which physical disk block holds the   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">       data at current offset</span><span style="color:#F47067">?</span><span style="color:#F47067">               |</span></span>
+<span class="line"><span style="color:#F47067">  +---------------------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#ADBAC7">         v</span></span>
+<span class="line"><span style="color:#F47067">  +--</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">4</span><span style="color:#ADBAC7">] Check page cache</span><span style="color:#F47067">-----------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">       Is </span><span style="color:#6CB6FF">this</span><span style="color:#ADBAC7"> block already in memory</span><span style="color:#F47067">?</span><span style="color:#F47067">      |</span></span>
+<span class="line"><span style="color:#F47067">  +-----+---------+----------------------------+</span></span>
+<span class="line"><span style="color:#F47067">        |</span><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#ADBAC7">     HIT</span><span style="color:#F47067">!</span><span style="color:#ADBAC7">       MISS</span></span>
+<span class="line"><span style="color:#F47067">        |</span><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#ADBAC7">        v         v</span></span>
+<span class="line"><span style="color:#ADBAC7">  [from cache]  [</span><span style="color:#6CB6FF">5</span><span style="color:#ADBAC7">] Go to disk, load block into cache</span></span>
+<span class="line"><span style="color:#F47067">        |</span><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#F47067">        +----+----+</span></span>
+<span class="line"><span style="color:#F47067">             |</span></span>
+<span class="line"><span style="color:#ADBAC7">             v</span></span>
+<span class="line"><span style="color:#F47067">  +--</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">6</span><span style="color:#ADBAC7">] Copy bytes from cache to user buffer</span><span style="color:#F47067">---+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">       Update offset in open file table      </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7">       Update page cache reference counts    </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +---------------------------------------------+</span></span>
+<span class="line"><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#ADBAC7">         v</span></span>
+<span class="line"><span style="color:#F47067">  +--</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">7</span><span style="color:#ADBAC7">] Return number of bytes read</span><span style="color:#F47067">------------+</span></span>
+<span class="line"></span></code></pre>
+<p>So first, it goes to the FD pointer array and checks if there is a valid (non-NULL) pointer. If there is, it follows that pointer to the open file table entry. Then it checks the page cache - the OS page cache will check whether the block is available in memory or not. If it is, great - read from cache. If not, it goes to the inode table, checks which disk block has the current offset, loads it from disk into the page cache, and then reads from there.</p>
+<p>On the way back, it updates the FD pointer offset and everything.</p>
+<h2>Unix I/O Basics</h2>
+<hr>
+<p>So Unix I/O basics are simple. There are some things you have to know before you understand how to read and write from a Linux/system perspective.</p>
+<p><strong>Every file is just a sequence of bytes.</strong> That's it. The kernel doesn't know if your file is text, binary, JPEG, or a video. It's all just bytes. And because of that, we have to be careful when using these functions.</p>
+<h3>File Types</h3>
+<p>There are many file types in Linux:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><strong>Regular file</strong></td><td>Just text or binary. A random set of bytes</td></tr><tr><td><strong>Directory</strong></td><td>An array of entries mapping filenames to inodes</td></tr><tr><td><strong>Socket</strong></td><td>For processes communicating across machines through a file</td></tr><tr><td><strong>Named pipe (FIFO)</strong></td><td>Like a pipe but exists in the filesystem</td></tr><tr><td><strong>Symbolic link</strong></td><td>Pointer to another file</td></tr><tr><td><strong>Character device</strong></td><td>Byte-stream device (like a terminal)</td></tr><tr><td><strong>Block device</strong></td><td>Block-addressable device (like a disk)</td></tr></tbody></table>
+<h3>Opening and Closing Files</h3>
+<p>To open, read, or write files you can use any of the 2 libraries. If you want Unix I/O, use <code>open</code>. If you want Standard I/O, <code>fopen</code> is better.</p>
+<p>The flags for <code>open</code>:</p>
+<ul>
+<li><code>O_RDONLY</code> - Read only</li>
+<li><code>O_WRONLY</code> - Write only</li>
+<li><code>O_RDWR</code> - Read and write</li>
+</ul>
+<p>And there are optional flags:</p>
+<ul>
+<li><code>O_CREAT</code> - Create file if it doesn't exist</li>
+<li><code>O_APPEND</code> - Append to end of file</li>
+<li><code>O_TRUNC</code> - Truncate (delete existing contents)</li>
+<li><code>O_EXCL</code> - Fail if file already exists</li>
+</ul>
+<p><strong>Best practices:</strong></p>
+<ul>
+<li><strong>Don't try to close the same file twice.</strong> Just like you shouldn't call <code>free()</code> twice on the same pointer. It can cause issues.</li>
+<li><strong>Make sure you close the file every time.</strong> Closing can fail too (delayed write errors), so handle the return value of <code>close()</code>.</li>
+</ul>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#768390">// Opening a file</span></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#ADBAC7"> fd </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> open</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"data.txt"</span><span style="color:#ADBAC7">, O_RDONLY);</span></span>
+<span class="line"><span style="color:#F47067">if</span><span style="color:#ADBAC7"> (fd </span><span style="color:#F47067">&lt;</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">) {</span></span>
+<span class="line"><span style="color:#DCBDFB">    perror</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"open"</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#DCBDFB">    exit</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#768390">// Reading from it</span></span>
+<span class="line"><span style="color:#F47067">char</span><span style="color:#F69D50"> buf</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">512</span><span style="color:#ADBAC7">];</span></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#ADBAC7"> n </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> read</span><span style="color:#ADBAC7">(fd, buf, </span><span style="color:#F47067">sizeof</span><span style="color:#ADBAC7">(buf));</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#768390">// Don't forget to close!</span></span>
+<span class="line"><span style="color:#F47067">if</span><span style="color:#ADBAC7"> (</span><span style="color:#DCBDFB">close</span><span style="color:#ADBAC7">(fd) </span><span style="color:#F47067">&lt;</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">) {</span></span>
+<span class="line"><span style="color:#DCBDFB">    perror</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"close"</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span></code></pre>
+<h2>Short Counts</h2>
+<hr>
+<p>What is a short count actually?</p>
+<p>When you request to read 1000 bytes from a file descriptor, it might just give you only 400 bytes. And it's <strong>not an EOF</strong>. Why?</p>
+<p>Because maybe you're near the end of the file. So if you try another time after you get those 400 bytes, it can return 0 (which means EOF).</p>
+<p>The return values work like this:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#DCBDFB">  read</span><span style="color:#ADBAC7">(fd, buf, </span><span style="color:#6CB6FF">1000</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Returns:</span></span>
+<span class="line"><span style="color:#F47067">    -</span><span style="color:#6CB6FF">1</span><span style="color:#F47067">   -&gt;</span><span style="color:#ADBAC7"> Error occurred</span></span>
+<span class="line"><span style="color:#6CB6FF">     0</span><span style="color:#F47067">   -&gt;</span><span style="color:#ADBAC7"> End of </span><span style="color:#DCBDFB">file</span><span style="color:#ADBAC7"> (EOF)  </span></span>
+<span class="line"><span style="color:#F47067">    &gt;</span><span style="color:#6CB6FF">0</span><span style="color:#F47067">   -&gt;</span><span style="color:#ADBAC7"> Number of bytes actually read</span></span>
+<span class="line"><span style="color:#ADBAC7">    </span></span>
+<span class="line"><span style="color:#ADBAC7">  So </span><span style="color:#F47067">if</span><span style="color:#ADBAC7"> you get </span><span style="color:#FF938A;font-style:italic">400...</span><span style="color:#ADBAC7"> that</span><span style="color:#96D0FF">'s fine.</span></span>
+<span class="line"><span style="color:#96D0FF">  It just means "I gave you 400, ask again for more"</span></span>
+<span class="line"></span></code></pre>
+<p>Most of the time with network sockets, you won't get the full requested bytes in one shot. There could be network issues, packet delays, etc. But with disk files, short counts only happen near EOF.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Situation</th><th>Short counts possible?</th></tr></thead><tbody><tr><td>Hitting EOF on reads</td><td>Yes</td></tr><tr><td>Reading from terminal</td><td>Yes</td></tr><tr><td>Network sockets/pipes</td><td>Yes</td></tr><tr><td>Reading from disk (not EOF)</td><td>No</td></tr><tr><td>Writing to disk</td><td>No</td></tr></tbody></table>
+<h2>Choosing the Right I/O Functions</h2>
+<hr>
+<p>There are many cases where you have to choose between these I/O libraries.</p>
+<p><strong>For normal applications</strong> - Use <strong>Standard I/O</strong> because the buffering, seeking, flushing, everything is handled for you. It's better than raw Unix I/O for everyday file operations.</p>
+<p><strong>For databases, low-level stuff</strong> - Use <strong>Unix I/O</strong>. If you're going to write a database (like me ;-)), then you must use Unix I/O. You need full control over buffering, page management, flushing, everything.</p>
+<p><strong>For network applications</strong> - Use <strong>Unix I/O</strong>. Standard I/O is NOT safe for network sockets. It's basically for just normal operations of a program, not for internal/network applications.</p>
+<h2>File Metadata</h2>
+<hr>
+<p>You can use <code>stat</code> or <code>fstat</code> to get file metadata, whatever you like. It's just a way to access your own metadata. Most probably both will give you the same info, but <code>fstat</code> will give you more abstract things.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">struct</span><span style="color:#ADBAC7"> stat {</span></span>
+<span class="line"><span style="color:#F47067">    dev_t</span><span style="color:#ADBAC7">     st_dev;</span><span style="color:#768390">     // Device</span></span>
+<span class="line"><span style="color:#F47067">    ino_t</span><span style="color:#ADBAC7">     st_ino;</span><span style="color:#768390">     // Inode number</span></span>
+<span class="line"><span style="color:#F47067">    mode_t</span><span style="color:#ADBAC7">    st_mode;</span><span style="color:#768390">    // Permissions and file type</span></span>
+<span class="line"><span style="color:#F47067">    nlink_t</span><span style="color:#ADBAC7">   st_nlink;</span><span style="color:#768390">   // Number of hard links</span></span>
+<span class="line"><span style="color:#F47067">    uid_t</span><span style="color:#ADBAC7">     st_uid;</span><span style="color:#768390">     // Owner user ID</span></span>
+<span class="line"><span style="color:#F47067">    gid_t</span><span style="color:#ADBAC7">     st_gid;</span><span style="color:#768390">     // Owner group ID</span></span>
+<span class="line"><span style="color:#F47067">    off_t</span><span style="color:#ADBAC7">     st_size;</span><span style="color:#768390">    // Total size in bytes</span></span>
+<span class="line"><span style="color:#F47067">    time_t</span><span style="color:#ADBAC7">    st_atime;</span><span style="color:#768390">   // Last access time</span></span>
+<span class="line"><span style="color:#F47067">    time_t</span><span style="color:#ADBAC7">    st_mtime;</span><span style="color:#768390">   // Last modification time</span></span>
+<span class="line"><span style="color:#F47067">    time_t</span><span style="color:#ADBAC7">    st_ctime;</span><span style="color:#768390">   // Last status change time</span></span>
+<span class="line"><span style="color:#ADBAC7">};</span></span>
+<span class="line"></span></code></pre>
+<p>Use <code>stat</code> for critical operations and metadata access. For non-critical reads of file info, <code>fstat</code> is fine.</p>
+<h2>File Sharing with <code>fork()</code></h2>
+<hr>
+<p>I think by now you have a good grasp of the 3 tables - File Descriptor table, Open File table, and V-Node/Inode table. So without further ado, let's talk about <code>fork()</code>.</p>
+<p>You know Linux is basically a process tree right? Every process has its own parent. So when you <code>fork()</code>, what happens to the file descriptors?</p>
+<p>It's simple. The child process gets its <strong>own copy of the file descriptor table</strong>, but it points to the <strong>same open file table entries</strong> as the parent. And the reference count in the open file table just gets incremented.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">  BEFORE</span><span style="color:#DCBDFB"> fork</span><span style="color:#ADBAC7">():</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Parent FD Table         Open File Table         Inode</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span><span style="color:#F47067">              +------------------+</span><span style="color:#F47067">     +---------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 0</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stdin       </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> offset: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067">        |</span><span style="color:#F47067">     |</span><span style="color:#ADBAC7"> File X  </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 1</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stdout      </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> mode: O_RDONLY   </span><span style="color:#F47067">|</span><span style="color:#F47067">     |</span><span style="color:#ADBAC7"> refcnt:</span><span style="color:#6CB6FF">1</span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 2</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stderr      </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> refcnt: </span><span style="color:#6CB6FF">1</span><span style="color:#F47067">        |----&gt;|</span><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 3</span><span style="color:#F47067">   |-------------&gt;|</span><span style="color:#ADBAC7"> inode: X         </span><span style="color:#F47067">|</span><span style="color:#F47067">     +---------+</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span><span style="color:#F47067">              +------------------+</span></span>
+<span class="line"></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F69D50">  AFTER</span><span style="color:#DCBDFB"> fork</span><span style="color:#ADBAC7">():</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Parent FD Table         Open File Table         Inode</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span><span style="color:#F47067">              +------------------+</span><span style="color:#F47067">     +---------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 0</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stdin       </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> offset: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067">        |</span><span style="color:#F47067">     |</span><span style="color:#ADBAC7"> File X  </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 1</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stdout      </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> mode: O_RDONLY   </span><span style="color:#F47067">|</span><span style="color:#F47067">     |</span><span style="color:#ADBAC7"> refcnt:</span><span style="color:#6CB6FF">1</span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 2</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stderr      </span><span style="color:#F47067">|</span><span style="color:#ADBAC7"> refcnt: </span><span style="color:#6CB6FF">2</span><span style="color:#F47067">  &lt;---+</span><span style="color:#6CB6FF">1</span><span style="color:#F47067">|----&gt;|</span><span style="color:#F47067">         |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 3</span><span style="color:#F47067">   |------+------&gt;|</span><span style="color:#ADBAC7"> inode: X         </span><span style="color:#F47067">|</span><span style="color:#F47067">     +---------+</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span><span style="color:#F47067">      |</span><span style="color:#F47067">       +------------------+</span></span>
+<span class="line"><span style="color:#F47067">               |</span></span>
+<span class="line"><span style="color:#ADBAC7">  Child FD </span><span style="color:#DCBDFB">Table</span><span style="color:#ADBAC7"> (COPY)</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span><span style="color:#F47067">      |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 0</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stdin</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 1</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stdout</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 2</span><span style="color:#F47067">   |--</span><span style="color:#ADBAC7">stderr</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 3</span><span style="color:#F47067">   |------+</span><span style="color:#ADBAC7">  (</span><span style="color:#F69D50">points</span><span style="color:#F69D50"> to</span><span style="color:#F69D50"> SAME</span><span style="color:#F69D50"> open</span><span style="color:#F69D50"> file</span><span style="color:#F69D50"> table</span><span style="color:#F69D50"> entry</span><span style="color:#F47067">!</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span></span>
+<span class="line"></span></code></pre>
+<p>Simple right? But here's the interesting consequence.</p>
+<p>Since both parent and child point to the <strong>same open file table entry</strong>, they share the <strong>same offset</strong>. So if the parent reads one byte from the file, the offset gets updated, and the child will see that updated offset.</p>
+<p>Consider a file that contains <code>ABCDE</code>:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  File content: A B C D E</span></span>
+<span class="line"><span style="color:#ADBAC7">  Initial offset: </span><span style="color:#6CB6FF">0</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Parent reads </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7"> byte:</span></span>
+<span class="line"><span style="color:#F47067">    -&gt;</span><span style="color:#ADBAC7"> Gets </span><span style="color:#96D0FF">'A'</span></span>
+<span class="line"><span style="color:#F47067">    -&gt;</span><span style="color:#ADBAC7"> Offset becomes </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7"> (in the SHARED open file table entry)</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Child reads </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7"> byte:</span></span>
+<span class="line"><span style="color:#F47067">    -&gt;</span><span style="color:#ADBAC7"> Gets </span><span style="color:#96D0FF">'B'</span><span style="color:#ADBAC7"> (</span><span style="color:#F47067">not</span><span style="color:#96D0FF"> 'A'</span><span style="color:#F47067">!</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#F47067">    -&gt;</span><span style="color:#ADBAC7"> Offset becomes </span><span style="color:#6CB6FF">2</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Why</span><span style="color:#F47067">?</span><span style="color:#ADBAC7"> Because they share the same offset through</span></span>
+<span class="line"><span style="color:#ADBAC7">  the same open file table entry</span><span style="color:#F47067">!</span></span>
+<span class="line"></span></code></pre>
+<p>The open file table has the same mapping for both parent and child. When the parent accesses the file and updates the offset, the child inherits that change because they both point to the same entry. That's all.</p>
+<h2>I/O Redirection with <code>dup2</code></h2>
+<hr>
+<p>Time to learn a new function. <code>dup2</code> takes 2 arguments - an old fd and a new fd.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">int</span><span style="color:#DCBDFB"> dup2</span><span style="color:#ADBAC7">(</span><span style="color:#F47067">int</span><span style="color:#F69D50"> oldfd</span><span style="color:#ADBAC7">, </span><span style="color:#F47067">int</span><span style="color:#F69D50"> newfd</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"></span></code></pre>
+<p>What it does is - it copies the old fd entry to the new fd slot. That's all. It sounds simple right?</p>
+<p>But where it is actually used is in <strong>I/O redirection</strong>. Let's say you are going to use the command:</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">ls</span><span style="color:#F47067"> &gt;</span><span style="color:#96D0FF"> foo.txt</span></span>
+<span class="line"></span></code></pre>
+<p>This just redirects the output of <code>ls</code> to <code>foo.txt</code> instead of printing on the terminal right? How does it happen?</p>
+<p>It's simple. Let me go step by step.</p>
+<p><strong>Step 1:</strong> The shell opens <code>foo.txt</code>. Let's say it gets fd 4.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">  FD</span><span style="color:#DCBDFB"> Table</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">after</span><span style="color:#F69D50"> opening</span><span style="color:#F69D50"> foo</span><span style="color:#ADBAC7">.</span><span style="color:#F69D50">txt</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#F47067">  +-----+------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 0</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> stdin               </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 1</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#DCBDFB"> stdout</span><span style="color:#ADBAC7"> (terminal)   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 2</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#DCBDFB"> stderr</span><span style="color:#ADBAC7"> (terminal)   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 3</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">something</span><span style="color:#ADBAC7">)         </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 4</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> foo.txt             </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +-----+------------------------+</span></span>
+<span class="line"></span></code></pre>
+<p><strong>Step 2:</strong> The shell calls <code>dup2(4, 1)</code>. This replaces fd 1 (stdout) with whatever fd 4 points to (foo.txt).</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">  FD</span><span style="color:#DCBDFB"> Table</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">after</span><span style="color:#DCBDFB"> dup2</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">4</span><span style="color:#ADBAC7">, </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">))</span></span>
+<span class="line"><span style="color:#F47067">  +-----+------------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 0</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> stdin               </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 1</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> foo.txt   </span><span style="color:#F47067">&lt;--</span><span style="color:#ADBAC7"> WAS stdout, NOW foo.txt</span><span style="color:#F47067">!</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 2</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#DCBDFB"> stderr</span><span style="color:#ADBAC7"> (terminal)   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 3</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">something</span><span style="color:#ADBAC7">)         </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 4</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> foo.txt             </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +-----+------------------------+</span></span>
+<span class="line"></span></code></pre>
+<p><strong>Step 3:</strong> Now when <code>ls</code> writes to stdout (fd 1), it THINKS it's writing to the terminal, but it's actually writing to <code>foo.txt</code>. Because fd 1 now points to <code>foo.txt</code>'s open file table entry.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  ls calls </span><span style="color:#DCBDFB">write</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">, </span><span style="color:#96D0FF">"main.c</span><span style="color:#F47067">\n</span><span style="color:#96D0FF">"</span><span style="color:#ADBAC7">, </span><span style="color:#6CB6FF">7</span><span style="color:#ADBAC7">)</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  ls thinks: </span><span style="color:#96D0FF">"I'm writing to stdout"</span></span>
+<span class="line"><span style="color:#ADBAC7">  Reality:   fd </span><span style="color:#6CB6FF">1</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> foo.txt -&gt; data goes to disk</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Result: </span><span style="color:#96D0FF">"main.c"</span><span style="color:#ADBAC7"> ends up in foo.txt, </span><span style="color:#F47067">not</span><span style="color:#ADBAC7"> on screen</span><span style="color:#F47067">!</span></span>
+<span class="line"></span></code></pre>
+<p>Simple as that! And the reference count of the open file table entry for <code>foo.txt</code> goes to 2 (because both fd 1 and fd 4 point to it now).</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  Open File Table entry </span><span style="color:#F47067">for</span><span style="color:#ADBAC7"> foo.txt</span></span>
+<span class="line"><span style="color:#F47067">  +------------------+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> offset: </span><span style="color:#6CB6FF">0</span><span style="color:#F47067">        |</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> mode: O_WRONLY   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> refcnt: </span><span style="color:#6CB6FF">2</span><span style="color:#F47067">        |</span><span style="color:#F47067">  &lt;-</span><span style="color:#ADBAC7"> fd </span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7"> AND fd </span><span style="color:#6CB6FF">4</span><span style="color:#ADBAC7"> both point here</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#ADBAC7"> inode: foo.txt   </span><span style="color:#F47067">|</span></span>
+<span class="line"><span style="color:#F47067">  +------------------+</span></span>
+<span class="line"></span></code></pre>
+<blockquote>
+<p>I also have some file descriptor puzzles to practice with. I'll leave that section for you to explore.</p>
+</blockquote>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#768390">// TODO: File descriptor puzzles section - paste the puzzles here</span></span>
+<span class="line"></span></code></pre>
+<h2>How Pipes Work</h2>
+<hr>
+<p>You understood how I/O redirection works with <code>dup2</code>. But how does the <strong>pipe</strong> work? The <code>|</code> symbol in shell? It's a bit more complicated, but once you understand <code>dup2</code> and <code>fork</code>, it all makes sense.</p>
+<p>Let's take the command: <code>ls | grep txt</code></p>
+<p>We are going to use the <code>pipe()</code> function with an fd array of 2 elements. Let me walk you through the full code and the 6 steps.</p>
+<h3>The Pipe Code</h3>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F47067">#include</span><span style="color:#96D0FF"> &lt;stdio.h&gt;</span></span>
+<span class="line"><span style="color:#F47067">#include</span><span style="color:#96D0FF"> &lt;unistd.h&gt;</span></span>
+<span class="line"><span style="color:#F47067">#include</span><span style="color:#96D0FF"> &lt;sys/types.h&gt;</span></span>
+<span class="line"><span style="color:#F47067">#include</span><span style="color:#96D0FF"> &lt;sys/wait.h&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">int</span><span style="color:#DCBDFB"> main</span><span style="color:#ADBAC7">() {</span></span>
+<span class="line"><span style="color:#F47067">    int</span><span style="color:#F69D50"> fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">2</span><span style="color:#ADBAC7">];</span></span>
+<span class="line"><span style="color:#DCBDFB">    pipe</span><span style="color:#ADBAC7">(fd);</span><span style="color:#768390">  // fd[0] = read end, fd[1] = write end</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">    pid_t</span><span style="color:#ADBAC7"> pid1 </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> fork</span><span style="color:#ADBAC7">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">    if</span><span style="color:#ADBAC7"> (pid1 </span><span style="color:#F47067">==</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">) {</span></span>
+<span class="line"><span style="color:#768390">        // ---- Child 1: runs "ls" ----</span></span>
+<span class="line"><span style="color:#ADBAC7">        </span></span>
+<span class="line"><span style="color:#768390">        // Redirect stdout -&gt; pipe write end</span></span>
+<span class="line"><span style="color:#DCBDFB">        dup2</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">], STDOUT_FILENO);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#768390">        // Close unused fds</span></span>
+<span class="line"><span style="color:#DCBDFB">        close</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">]); </span></span>
+<span class="line"><span style="color:#DCBDFB">        close</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">]);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">        execlp</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"ls"</span><span style="color:#ADBAC7">, </span><span style="color:#96D0FF">"ls"</span><span style="color:#ADBAC7">, </span><span style="color:#6CB6FF">NULL</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#ADBAC7">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">    pid_t</span><span style="color:#ADBAC7"> pid2 </span><span style="color:#F47067">=</span><span style="color:#DCBDFB"> fork</span><span style="color:#ADBAC7">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">    if</span><span style="color:#ADBAC7"> (pid2 </span><span style="color:#F47067">==</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">) {</span></span>
+<span class="line"><span style="color:#768390">        // ---- Child 2: runs "grep txt" ----</span></span>
+<span class="line"><span style="color:#ADBAC7">        </span></span>
+<span class="line"><span style="color:#768390">        // Redirect stdin -&gt; pipe read end</span></span>
+<span class="line"><span style="color:#DCBDFB">        dup2</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">], STDIN_FILENO);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#768390">        // Close unused fds</span></span>
+<span class="line"><span style="color:#DCBDFB">        close</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">]);</span></span>
+<span class="line"><span style="color:#DCBDFB">        close</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">]);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#DCBDFB">        execlp</span><span style="color:#ADBAC7">(</span><span style="color:#96D0FF">"grep"</span><span style="color:#ADBAC7">, </span><span style="color:#96D0FF">"grep"</span><span style="color:#ADBAC7">, </span><span style="color:#96D0FF">"txt"</span><span style="color:#ADBAC7">, </span><span style="color:#6CB6FF">NULL</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#ADBAC7">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#768390">    // ---- Parent ----</span></span>
+<span class="line"><span style="color:#DCBDFB">    close</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">0</span><span style="color:#ADBAC7">]);</span></span>
+<span class="line"><span style="color:#DCBDFB">    close</span><span style="color:#ADBAC7">(</span><span style="color:#F69D50">fd</span><span style="color:#ADBAC7">[</span><span style="color:#6CB6FF">1</span><span style="color:#ADBAC7">]);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#768390">    // Wait for both children</span></span>
+<span class="line"><span style="color:#DCBDFB">    wait</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">NULL</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"><span style="color:#DCBDFB">    wait</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">NULL</span><span style="color:#ADBAC7">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F47067">    return</span><span style="color:#6CB6FF"> 0</span><span style="color:#ADBAC7">;</span></span>
+<span class="line"><span style="color:#ADBAC7">}</span></span>
+<span class="line"></span></code></pre>
+<p>Now let me explain what happens step by step. I have 6 steps with pictures for each.</p>
+<h3>Step 1: After <code>pipe(fd)</code></h3>
+<p>When you call <code>pipe(fd)</code>, it creates <strong>2 entries</strong> (a pipe object) in the open file table. One entry is mode <strong>read</strong> and the other is mode <strong>write</strong>.</p>
+<p>These get assigned to fd[0] (read end) and fd[1] (write end). Let's say fd[0] = 3 and fd[1] = 4.</p>
+<p><img src="/assets/pDvU-JMf4fSQg-ph_3cHGwy2uRRNuRqSNW7zbefQl0M=.png" alt=""></p>
+<h3>Step 2: After first <code>fork()</code> - Child 1 created</h3>
+<p>What happens? Same as any fork. The child gets its own copy of the FD table pointing to the SAME open file table entries. Reference counts go up.</p>
+<p><img src="/assets/9p8YncfUg74rrWLDRG828rELsk4CH8DMw5RAi0n3z1A=.png" alt=""></p>
+<h3>Step 3: Child 1 does <code>dup2(fd[1], STDOUT_FILENO)</code></h3>
+<p>In Child 1, we call <code>dup2(fd[1], 1)</code>. What happens? The stdout (fd 1) of Child 1 gets replaced by fd[1] which is fd 4 (the pipe write end).</p>
+<p>So now in Child 1: fd 1 AND fd 4 both point to the pipe's WRITE end.</p>
+<p><img src="/assets/oJcF3V3faSuLK_iIDUj_kFRMS9MBUvDKpdjSBT4e4k0=.png" alt=""></p>
+<h3>Step 4: Child 1 closes unused fds</h3>
+<p>Then we close the unused fds in Child 1 - close(fd[0]) and close(fd[1]). We already have stdout pointing to the pipe write end, so we don't need fd 3 and fd 4 anymore.</p>
+<p><img src="/assets/OUMgU8MtQujbQCK9dLzWlPqYLplVj4Yc-PFBqnqzBvI=.png" alt=""></p>
+<h3>Step 5: After second <code>fork()</code></h3>
+<p>We fork again from the parent to create Child 2. Same thing - Child 2 gets a copy of the parent's FD table (which still has fd 3 and 4 pointing to the pipe).</p>
+<p><img src="/assets/CuzoLF8G6hweMZPjh36TPTxj0sZoNdTZMzoobEgGGMw=.png" alt=""></p>
+<h3>Step 6: The Full Picture - Data Flows Through the Pipe - Child 2 does <code>dup2(fd[0], STDIN_FILENO)</code></h3>
+<p>Then Child 2 calls <code>dup2(fd[0], 0)</code>. This replaces stdin (fd 0) with the pipe's READ end.</p>
+<p>Now look at what we've built:</p>
+<p><img src="/assets/Q1gI5ypHfeedF8C2-OjkUMokbOAJuJ5nAhZjl-5ZWwg=.png" alt=""></p>
+<p>This is why it's called a <strong>pipe</strong>! It's literally like a physical pipe connecting two processes. Child 1 writes into one end, Child 2 reads from the other end.</p>
+<p>The parent also closes its pipe fds (fd[0] and fd[1]) since it doesn't need them. Then it waits for both children to finish.</p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#ADBAC7">  Parent FD </span><span style="color:#DCBDFB">Table</span><span style="color:#ADBAC7"> (final)</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 0</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> stdin</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 1</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> stdout</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 2</span><span style="color:#F47067">   |</span><span style="color:#F47067"> -&gt;</span><span style="color:#ADBAC7"> stderr</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 3</span><span style="color:#F47067">   |</span><span style="color:#6CB6FF"> NULL</span><span style="color:#ADBAC7"> (closed)</span></span>
+<span class="line"><span style="color:#F47067">  |</span><span style="color:#6CB6FF"> 4</span><span style="color:#F47067">   |</span><span style="color:#6CB6FF"> NULL</span><span style="color:#ADBAC7"> (closed)</span></span>
+<span class="line"><span style="color:#F47067">  +-----+</span></span>
+<span class="line"><span style="color:#ADBAC7">  </span></span>
+<span class="line"><span style="color:#ADBAC7">  Parent just calls </span><span style="color:#DCBDFB">wait</span><span style="color:#ADBAC7">(</span><span style="color:#6CB6FF">NULL</span><span style="color:#ADBAC7">) twice</span></span>
+<span class="line"><span style="color:#F47067">  and</span><span style="color:#ADBAC7"> waits </span><span style="color:#F47067">for</span><span style="color:#ADBAC7"> both children to finish.</span></span>
+<span class="line"></span></code></pre>
+<p>And that's how <code>ls | grep txt</code> works under the hood. Pretty elegant right?</p>
+<h2>Summary</h2>
+<hr>
+<p>So to wrap it all up:</p>
+<p><strong>System I/O</strong> is just how the OS reads and writes files. Everything in Linux is a file - regular files, directories, sockets, pipes, devices.</p>
+<p><strong>Unix I/O</strong> is the raw system call layer - <code>open</code>, <code>close</code>, <code>read</code>, <code>write</code>, <code>lseek</code>. Direct but expensive per call.</p>
+<p><strong>Standard I/O</strong> is the buffered wrapper - <code>fopen</code>, <code>fprintf</code>, <code>fclose</code>. Handles buffering, so way fewer syscalls.</p>
+<p><strong>The 3 Kernel Tables:</strong></p>
+<pre class="code-block" style="background-color:#22272e;color:#adbac7" tabindex="0"><code><span class="line"><span style="color:#F69D50">FD</span><span style="color:#DCBDFB"> Table</span><span style="color:#ADBAC7"> (</span><span style="color:#F69D50">per</span><span style="color:#F69D50"> process</span><span style="color:#ADBAC7">) -&gt; </span><span style="color:#F69D50">Open</span><span style="color:#ADBAC7"> File </span><span style="color:#DCBDFB">Table</span><span style="color:#ADBAC7"> (system</span><span style="color:#F47067">-</span><span style="color:#ADBAC7">wide) -&gt; </span><span style="color:#F69D50">Inode</span><span style="color:#DCBDFB"> Table</span><span style="color:#ADBAC7"> (system</span><span style="color:#F47067">-</span><span style="color:#ADBAC7">wide)</span></span>
+<span class="line"></span></code></pre>
+<p><strong>fork()</strong> copies the FD table but shares the open file table entries. Parent and child share the same file offset.</p>
+<p><strong>dup2(oldfd, newfd)</strong> replaces newfd with oldfd's entry. This is how shell redirection (<code>&gt;</code>, <code>&lt;</code>) works.</p>
+<p><strong>Pipes</strong> use <code>pipe()</code> + <code>fork()</code> + <code>dup2()</code> to connect stdout of one process to stdin of another.</p>
+<p>This is the foundation of how Linux does I/O. Once you get this, networking, IPC, and all the fancy stuff is just the same concepts applied differently.</p>
+<p>Will see you in the next one :-)</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><h2 class="text-2xl font-bold mb-6 font-sans text-[#e6e6e6]">Comments</h2><giscus-widget repo="LakshimiRam-073/portfolio2.0" repoid="R_kgDORpPTlA" category="General" categoryid="DIC_kwDORpPTlM4C6UZb" mapping="pathname" strict="0" reactionsenabled="1" emitmetadata="0" inputposition="bottom" theme="dark_dimmed" lang="en" loading="lazy" host="https://giscus.app"></giscus-widget><p class="mt-4 text-xs text-neutral-400 text-center">Comments are powered by <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="underline hover:text-[#e6e6e6]">Giscus</a>. Sign in with GitHub to leave a comment.</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 font-sans no-underline" href="/articles">← Back to Articles</a></div></article></div></main><footer class="border-t border-[#222] bg-[#121212] py-8 mt-12"><div class="max-w-4xl mx-auto px-6 text-center text-neutral-500 text-sm"><p>© 2026. All rights reserved.</p></div></footer></div></div>
+  
+
+</body></html>
