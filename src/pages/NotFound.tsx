@@ -13,19 +13,19 @@ export default function NotFound() {
             <h1 className="text-6xl font-bold mb-2">404</h1>
             <h2 className="text-2xl font-semibold">Page Not Found</h2>
           </div>
-          <p className="text-gray-600 dark:text-stone-400">
+          <p className="text-neutral-400">
             The page you're looking for doesn't exist or has been moved.
           </p>
           <div className="flex flex-col md:flex-row gap-4 justify-center">
             <Link
               to="/"
-              className="px-6 py-2 bg-gray-900 dark:bg-stone-100 text-white dark:text-gray-900 rounded-lg font-semibold hover:opacity-80 transition-opacity"
+              className="px-6 py-2 bg-neutral-100 text-black rounded-lg font-semibold hover:bg-white transition-colors"
             >
               Go Home
             </Link>
             <Link
               to="/articles"
-              className="px-6 py-2 bg-gray-200 dark:bg-stone-800 text-gray-900 dark:text-stone-100 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-stone-700 transition-colors"
+              className="px-6 py-2 bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-lg font-semibold hover:bg-neutral-800 hover:border-neutral-700 transition-colors"
             >
               View Articles
             </Link>

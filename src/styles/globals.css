@@ -32,10 +32,10 @@ html.dark ::selection {
 /* Body */
 
 body {
-  @apply transition-colors duration-300 antialiased;
+  @apply antialiased;
 
-  background-color: #ffffff;
-  color: #292929;
+  background-color: #000000;
+  color: #d4d4d4;
 
   font-family: "Manrope", system-ui, sans-serif;
   font-size: 18px;
@@ -45,8 +45,8 @@ body {
 }
 
 html.dark body {
-  background-color: #0c0a09;
-  color: #d6d3d1;
+  background-color: #000000;
+  color: #d4d4d4;
 }
 
 html, body {
@@ -68,16 +68,6 @@ html, body {
   color: #9ca3af;
 }
 
-/* Cursor animation */
-
-@keyframes blink {
-  from, to { opacity: 1; }
-  50%      { opacity: 0; }
-}
-
-.Typewriter__cursor {
-  vertical-align: baseline;
-}
 
 /* Layout */
 
@@ -322,9 +312,9 @@ html {
 /* Medium-like link underline on hover */
 
 .markdown a {
-  color: #1a8917;
+  color: #fafafa;
   text-decoration: underline;
-  text-decoration-color: rgba(0, 0, 0, 0.15);
+  text-decoration-color: rgba(255, 255, 255, 0.3);
   text-underline-offset: 2px;
   transition: text-decoration-color 0.2s;
 }
@@ -334,8 +324,8 @@ html {
 }
 
 html.dark .markdown a {
-  color: #6ee76b;
-  text-decoration-color: rgba(255, 255, 255, 0.2);
+  color: #fafafa;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
 }
 
 html.dark .markdown a:hover {
@@ -348,94 +338,9 @@ html.dark .markdown a:hover {
   to { transform: rotate(360deg); }
 }
 
-/* Home page — full-screen subtle gradient wash */
+/* Home page background — intentionally empty (flat black, minimalist) */
 
-.home-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
-}
-
+.home-bg,
 .home-blob {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(120px);
-  opacity: 0.18;
-  pointer-events: none;
-  will-change: transform;
-}
-
-.home-blob.b1 {
-  width: 900px;
-  height: 900px;
-  top: -250px;
-  left: -200px;
-  background: radial-gradient(circle, rgba(134, 239, 172, 0.7), rgba(134, 239, 172, 0) 70%);
-  animation: blob-drift-1 22s ease-in-out infinite;
-}
-
-.home-blob.b2 {
-  width: 800px;
-  height: 800px;
-  bottom: -250px;
-  right: -200px;
-  background: radial-gradient(circle, rgba(252, 211, 77, 0.6), rgba(252, 211, 77, 0) 70%);
-  animation: blob-drift-2 26s ease-in-out infinite;
-}
-
-html.dark .home-blob {
-  opacity: 0.10;
-}
-
-html.dark .home-blob.b1 {
-  background: radial-gradient(circle, rgba(34, 197, 94, 0.7), rgba(34, 197, 94, 0) 70%);
-}
-
-html.dark .home-blob.b2 {
-  background: radial-gradient(circle, rgba(217, 119, 6, 0.6), rgba(217, 119, 6, 0) 70%);
-}
-
-@keyframes blob-drift-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(80px, 60px) scale(1.06); }
-  66%      { transform: translate(-40px, 100px) scale(0.96); }
-}
-
-@keyframes blob-drift-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(-70px, -50px) scale(1.04); }
-  66%      { transform: translate(50px, -80px) scale(0.94); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-blob {
-    animation: none !important;
-  }
-}
-
-/* Typewriter cursor styling */
-.Typewriter__cursor {
-  color: rgb(34 197 94);
-  font-weight: 300;
-}
-
-/* Home page entrance — subtle CSS-only fade up */
-.home-fade-up {
-  opacity: 0;
-  transform: translateY(12px);
-  animation: home-fade-up-kf 0.7s ease-out forwards;
-}
-
-@keyframes home-fade-up-kf {
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-fade-up {
-    opacity: 1;
-    transform: none;
-    animation: none !important;
-  }
+  display: none;
 }

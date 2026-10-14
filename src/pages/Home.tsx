@@ -1,13 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import SlidingTitle from '@/components/SlidingTitle'
 
-const taglines = [
-  "From kernel to cloud — understanding what actually runs the world.",
-  "Simplicity isn't optional; it's the foundation of reliability.",
-  "What I cannot create, I do not understand. — Richard Feynman",
-  "Have the courage to play the fool today, so you can be the genius tomorrow.",
-]
+// Single static tagline — no animation, fully present in prerendered HTML for SEO.
+const tagline = 'From kernel to cloud — understanding what actually runs the world.'
 
 function NavCard({
   to,
@@ -23,18 +18,18 @@ function NavCard({
   return (
     <Link
       to={to}
-      className="group relative block rounded-2xl border border-gray-200 dark:border-stone-800 bg-white/60 dark:bg-stone-950/60 backdrop-blur-sm p-6 hover:border-gray-300 dark:hover:border-stone-700 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-stone-950/50 hover:-translate-y-1 transition-all duration-300"
+      className="group relative block rounded-xl border border-neutral-800 bg-black p-6 hover:border-neutral-600 transition-colors duration-200"
     >
-      <div className="text-3xl mb-3 transition-transform group-hover:scale-110">
+      <div className="text-3xl mb-3">
         {glyph}
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-stone-100 mb-1 font-sans">
+      <h3 className="text-lg font-semibold text-neutral-100 mb-1 font-sans">
         {title}
       </h3>
-      <p className="text-sm text-gray-600 dark:text-stone-400 leading-relaxed">
+      <p className="text-sm text-neutral-400 leading-relaxed">
         {description}
       </p>
-      <span className="absolute top-5 right-5 text-gray-400 dark:text-stone-500 group-hover:text-green-600 dark:group-hover:text-green-400 group-hover:translate-x-1 transition-all">
+      <span className="absolute top-5 right-5 text-neutral-600 group-hover:text-neutral-200 transition-colors">
         →
       </span>
     </Link>
@@ -46,32 +41,31 @@ export default function Home() {
     <>
       <Helmet>
         <title>Stupid Notes</title>
+        <meta name="description" content="Deep dives on databases, systems, and the internals that run the world." />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Stupid Notes" />
+        <meta property="og:description" content="Deep dives on databases, systems, and the internals that run the world." />
+        <meta property="og:url" content="https://stupidnotes.in/" />
+        <meta property="og:image" content="https://stupidnotes.in/og-default.png" />
+        <meta property="og:site_name" content="Stupid Notes" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Stupid Notes" />
+        <meta name="twitter:description" content="Deep dives on databases, systems, and the internals that run the world." />
+        <meta name="twitter:image" content="https://stupidnotes.in/og-default.png" />
       </Helmet>
-
-      {/* Full-page subtle gradient wash */}
-      <div className="home-bg" aria-hidden="true">
-        <div className="home-blob b1" />
-        <div className="home-blob b2" />
-      </div>
 
       {/* Hero */}
       <section className="relative px-5 sm:px-8 pt-14 pb-16 md:pt-20 md:pb-20">
         <div className="max-w-3xl mx-auto text-center relative">
-          <p className="home-fade-up text-xs font-mono uppercase tracking-[0.25em] text-green-700 dark:text-green-400 mb-6">
+          <p className="text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mb-6">
             stupidnotes.in
           </p>
 
-          <h1
-            className="home-fade-up text-2xl sm:text-3xl md:text-4xl font-bold not-italic font-sans text-gray-900 dark:text-stone-100 tracking-tight min-h-[5.5rem] sm:min-h-[6rem] md:min-h-[6.5rem] flex items-center justify-center"
-            style={{ animationDelay: '120ms' }}
-          >
-            <SlidingTitle quotes={taglines} />
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold not-italic font-sans text-neutral-100 tracking-tight">
+            {tagline}
           </h1>
 
-          <p
-            className="home-fade-up mt-6 text-base sm:text-lg text-gray-600 dark:text-stone-400 font-sans max-w-xl mx-auto leading-relaxed"
-            style={{ animationDelay: '240ms' }}
-          >
+          <p className="mt-6 text-base sm:text-lg text-neutral-400 font-sans max-w-xl mx-auto leading-relaxed">
             Just someone curious about how things work under the hood — writing
             deep dives on databases, systems, and the internals that run the world.
           </p>

@@ -9,7 +9,7 @@ import NotFound from '@/pages/NotFound'
 
 export default function App() {
   return (
-    <div className="bg-white dark:bg-stone-950 text-gray-900 dark:text-stone-100 transition-colors duration-300 antialiased min-h-screen flex flex-col">
+    <div className="bg-black text-neutral-100 antialiased min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
         <Routes>
@@ -21,8 +21,8 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <footer className="border-t border-gray-200 dark:border-stone-800 bg-white dark:bg-stone-950 py-8 mt-12">
-        <div className="max-w-4xl mx-auto px-6 text-center text-gray-600 dark:text-stone-400 text-sm">
+      <footer className="border-t border-neutral-900 bg-black py-8 mt-12">
+        <div className="max-w-4xl mx-auto px-6 text-center text-neutral-500 text-sm">
           <p>&copy; 2026. All rights reserved.</p>
         </div>
       </footer>

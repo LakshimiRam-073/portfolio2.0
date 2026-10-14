@@ -42,22 +42,22 @@ function ResourceRow({ item }: { item: ResourceItem }) {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block py-3 px-4 -mx-4 rounded-lg hover:bg-gray-50 dark:hover:bg-stone-900/60 transition-colors"
+      className="group block py-3 px-4 -mx-4 rounded-lg hover:bg-neutral-900 transition-colors"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-gray-900 dark:text-stone-100 group-hover:text-green-700 dark:group-hover:text-green-400 transition-colors font-sans inline-flex items-center gap-1.5">
+          <h3 className="text-base font-semibold text-neutral-100 group-hover:text-neutral-300 transition-colors font-sans inline-flex items-center gap-1.5">
             <span>{item.title}</span>
             <ExternalIcon />
           </h3>
           {item.description && (
-            <p className="text-sm text-gray-600 dark:text-stone-400 mt-1 leading-relaxed">
+            <p className="text-sm text-neutral-400 mt-1 leading-relaxed">
               {item.description}
             </p>
           )}
         </div>
         {item.source && (
-          <span className="shrink-0 mt-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-gray-100 dark:bg-stone-800 text-gray-600 dark:text-stone-400 border border-gray-200/60 dark:border-stone-700/60">
+          <span className="shrink-0 mt-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-neutral-900 text-neutral-400 border border-neutral-800">
             {item.source}
           </span>
         )}
@@ -114,7 +114,7 @@ export default function Resources() {
       <div className="max-w-[1100px] w-full mx-auto px-8 py-12 md:py-16 max-md:px-6 max-sm:px-4">
         <div className="mb-10">
           <h1 className="text-3xl sm:text-4xl font-bold mb-2 font-sans">Resources</h1>
-          <p className="text-gray-500 dark:text-stone-400 text-base font-sans">
+          <p className="text-neutral-400 text-base font-sans">
             A curated reading list — books, papers, courses, and code worth your time.
           </p>
         </div>
@@ -123,7 +123,7 @@ export default function Resources() {
           <div className="mb-8">
             <div className="relative">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-stone-500"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -140,11 +140,11 @@ export default function Resources() {
                 placeholder="Search resources by title, source, or topic..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 placeholder-gray-400 dark:placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-green-500/40 focus:border-green-500 dark:focus:border-green-400 transition-colors text-sm font-sans"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-600/50 focus:border-neutral-500 transition-colors text-sm font-sans"
               />
             </div>
             {isFiltering && (
-              <p className="mt-3 text-sm text-gray-500 dark:text-stone-400 font-sans">
+              <p className="mt-3 text-sm text-neutral-400 font-sans">
                 Showing {totalShown} of {data.totalCount} resources
               </p>
             )}
@@ -153,11 +153,11 @@ export default function Resources() {
 
         {loading ? (
           <div className="py-16 flex justify-center">
-            <div className="w-6 h-6 border-2 border-gray-300 dark:border-stone-600 border-t-gray-900 dark:border-t-stone-100 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-neutral-700 border-t-neutral-100 rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-gray-600 dark:text-stone-400 text-lg">
+            <p className="text-neutral-400 text-lg">
               {isFiltering ? 'No resources match your search.' : 'No resources yet.'}
             </p>
           </div>
@@ -167,19 +167,19 @@ export default function Resources() {
               <details
                 key={cat.name}
                 open={isFiltering || idx === 0}
-                className="group rounded-xl border border-gray-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden"
+                className="group rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden"
               >
-                <summary className="flex items-center justify-between cursor-pointer select-none px-5 py-4 hover:bg-gray-50 dark:hover:bg-stone-900/60 transition-colors list-none">
+                <summary className="flex items-center justify-between cursor-pointer select-none px-5 py-4 hover:bg-neutral-900 transition-colors list-none">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold font-sans text-gray-900 dark:text-stone-100">
+                    <h2 className="text-lg font-semibold font-sans text-neutral-100">
                       {cat.name}
                     </h2>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-gray-100 dark:bg-stone-800 text-gray-600 dark:text-stone-400">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-neutral-900 text-neutral-400">
                       {cat.items.length}
                     </span>
                   </div>
                   <svg
-                    className="w-4 h-4 text-gray-500 dark:text-stone-400 transition-transform duration-200 group-open:rotate-180"
+                    className="w-4 h-4 text-neutral-400 transition-transform duration-200 group-open:rotate-180"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -192,7 +192,7 @@ export default function Resources() {
                     />
                   </svg>
                 </summary>
-                <div className="px-5 pb-3 border-t border-gray-100 dark:border-stone-800/60">
+                <div className="px-5 pb-3 border-t border-neutral-800">
                   {cat.items.map((item) => (
                     <ResourceRow key={item.url} item={item} />
                   ))}

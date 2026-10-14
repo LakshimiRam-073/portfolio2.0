@@ -64,21 +64,21 @@ function ArticleCard({ article }: { article: FlatArticle }) {
   return (
     <article className="group py-8 first:pt-0">
       <Link to={`/articles/${categoryPath}/${blog.slug}`} className="block">
-        <span className="inline-block text-xs font-medium uppercase tracking-wider text-green-700 dark:text-green-400 mb-3 font-sans">
+        <span className="inline-block text-xs font-medium uppercase tracking-wider text-neutral-300 mb-3 font-sans">
           {categoryName.replace(/-/g, ' ')}
         </span>
 
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-stone-100 mb-2 group-hover:text-gray-600 dark:group-hover:text-stone-300 transition-colors leading-tight font-sans">
+        <h2 className="text-xl sm:text-2xl font-bold text-neutral-100 mb-2 group-hover:text-neutral-400 transition-colors leading-tight font-sans">
           {blog.metadata.title}
         </h2>
 
         {blog.metadata.description && (
-          <p className="text-base text-gray-600 dark:text-stone-400 mb-3 line-clamp-2 leading-relaxed">
+          <p className="text-base text-neutral-400 mb-3 line-clamp-2 leading-relaxed">
             {blog.metadata.description}
           </p>
         )}
 
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-stone-500 font-sans">
+        <div className="flex items-center gap-2 text-sm text-neutral-400 font-sans">
           {blog.metadata.date && (
             <time dateTime={blog.metadata.date}>{formatDate(blog.metadata.date)}</time>
           )}
@@ -152,11 +152,21 @@ export default function Articles() {
       <Helmet>
         <title>Articles | Stupid Notes</title>
         <meta name="description" content="Deep dives into databases, system design, and low-level engineering with my stupid drawings." />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Stupid Notes" />
+        <meta property="og:title" content="Articles | Stupid Notes" />
+        <meta property="og:description" content="Deep dives into databases, system design, and low-level engineering with my stupid drawings." />
+        <meta property="og:url" content="https://stupidnotes.in/articles" />
+        <meta property="og:image" content="https://stupidnotes.in/og-default.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Articles | Stupid Notes" />
+        <meta name="twitter:description" content="Deep dives into databases, system design, and low-level engineering with my stupid drawings." />
+        <meta name="twitter:image" content="https://stupidnotes.in/og-default.png" />
       </Helmet>
       <div className="max-w-[1100px] w-full mx-auto px-8 py-12 md:py-16 max-md:px-6 max-sm:px-4">
         <div className="mb-10">
           <h1 className="text-3xl sm:text-4xl font-bold mb-2 font-sans">Articles</h1>
-          <p className="text-gray-500 dark:text-stone-400 text-base font-sans">
+          <p className="text-neutral-400 text-base font-sans">
             Deep dives into databases, system design, and low-level engineering with my stupid drawings.
           </p>
         </div>
@@ -167,7 +177,7 @@ export default function Articles() {
             {/* Search Bar */}
             <div className="relative">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-stone-500"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -184,13 +194,13 @@ export default function Articles() {
                 placeholder="Search articles by title, description, or topic..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 placeholder-gray-400 dark:placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-green-500/40 focus:border-green-500 dark:focus:border-green-400 transition-colors text-sm font-sans"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-600/50 focus:border-neutral-500 transition-colors text-sm font-sans"
               />
             </div>
 
             {/* Topic Filter */}
             <div className="flex flex-wrap gap-2">
-              <span className="text-xs font-medium text-gray-500 dark:text-stone-500 self-center mr-1 font-sans">
+              <span className="text-xs font-medium text-neutral-400 self-center mr-1 font-sans">
                 Topics:
               </span>
               {allCategoryNames.map((name) => (
@@ -201,8 +211,8 @@ export default function Articles() {
                   }
                   className={`text-xs px-3 py-1 rounded-full font-medium transition-colors font-sans ${
                     selectedCategory === name
-                      ? 'bg-green-600 text-white dark:bg-green-500 dark:text-stone-950'
-                      : 'bg-gray-100 dark:bg-stone-800 text-gray-700 dark:text-stone-300 hover:bg-gray-200 dark:hover:bg-stone-700'
+                      ? 'bg-neutral-100 text-black'
+                      : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
                   }`}
                 >
                   {name.replace(/-/g, ' ')}
@@ -213,12 +223,12 @@ export default function Articles() {
             {/* Active Filter Status */}
             {hasActiveFilters && (
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500 dark:text-stone-400 font-sans">
+                <p className="text-sm text-neutral-400 font-sans">
                   Showing {filteredArticles.length} of {allArticles.length} articles
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="text-sm text-green-700 dark:text-green-400 hover:underline font-medium font-sans"
+                  className="text-sm text-neutral-300 hover:text-neutral-100 hover:underline font-medium font-sans"
                 >
                   Clear filters
                 </button>
@@ -229,11 +239,11 @@ export default function Articles() {
 
         {loading ? (
           <div className="py-16 flex justify-center">
-            <div className="w-6 h-6 border-2 border-gray-300 dark:border-stone-600 border-t-gray-900 dark:border-t-stone-100 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-neutral-700 border-t-neutral-100 rounded-full animate-spin" />
           </div>
         ) : filteredArticles.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-gray-600 dark:text-stone-400 mb-4 text-lg">
+            <p className="text-neutral-400 mb-4 text-lg">
               {hasActiveFilters
                 ? 'No articles match your filters.'
                 : 'No articles yet. Check back soon!'}
@@ -241,14 +251,14 @@ export default function Articles() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="text-green-700 dark:text-green-400 hover:underline font-medium"
+                className="text-neutral-300 hover:text-neutral-100 hover:underline font-medium"
               >
                 Clear filters
               </button>
             )}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200 dark:divide-stone-800">
+          <div className="divide-y divide-neutral-800">
             {filteredArticles.map((article) => (
               <ArticleCard
                 key={`${article.categoryPath}/${article.blog.slug}`}

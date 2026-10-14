@@ -1,33 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
+// Site is dark-only (true black, minimalist). The hook just enforces the
+// `dark` class on <html> and clears any stale light-mode preference.
 export function useDarkMode() {
-  const [isDark, setIsDark] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
   useEffect(() => {
-    setMounted(true)
-    const storedPref = localStorage.getItem('darkMode')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = storedPref !== null ? storedPref === 'true' : prefersDark
-
-    setIsDark(shouldBeDark)
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    document.documentElement.classList.add('dark')
+    localStorage.removeItem('darkMode')
   }, [])
 
-  const toggleDarkMode = () => {
-    const newDarkMode = !isDark
-    setIsDark(newDarkMode)
-    localStorage.setItem('darkMode', String(newDarkMode))
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }
-
-  return { isDark: mounted ? isDark : false, toggleDarkMode, mounted }
+  return { isDark: true, toggleDarkMode: () => {}, mounted: true }
 }

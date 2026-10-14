@@ -1,5 +1,12 @@
 # About
 
+Backend engineer by profession, professional overthinker by passion.
+Can turn a simple question into a system design discussion.
+Terminal open, 47 tabs open, and somehow still vibing.
+Lowkey nerdy, highkey chill 🐉
+
+<!-- The Story So Far — commented out per request. Keep for later if wanted.
+
 ## The Story So Far
 
 ### The Curious 8-Year-Old
@@ -29,6 +36,8 @@ Do I think I can't understand these internals? No. Screw that thought.
 When I want to learn something, I go all in — every concept, every layer, ripping apart the source code if I have to. It's just our mind stopping us.
 
 And I still haven't stopped asking questions.
+
+-->
 
 ---
 

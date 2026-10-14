@@ -4,24 +4,25 @@
   "private": true,
   "description": "Minimalistic portfolio website with blog support",
   "scripts": {
-    "dev": "npm run build:content && vite",
-    "build": "npm run build:content && vite build",
+    "dev": "npm run build:content && node node_modules/vite/bin/vite.js",
+    "build": "npm run build:content && node node_modules/vite/bin/vite.js build && npm run postbuild",
     "build:content": "node scripts/build-content.mjs",
-    "preview": "vite preview",
-    "type-check": "tsc --noEmit",
+    "postbuild": "node scripts/prerender-routes.mjs",
+    "preview": "node node_modules/vite/bin/vite.js preview",
+    "serve:dist": "node scripts/serve-dist.mjs",
+    "type-check": "node node_modules/typescript/bin/tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,md,css}\"",
     "clean": "rm -rf dist node_modules public/data public/sitemap.xml"
   },
   "dependencies": {
     "@giscus/react": "^3.1.0",
-    "framer-motion": "^12.37.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-helmet-async": "^2.0.0",
-    "react-router-dom": "^6.20.0",
-    "typewriter-effect": "^2.22.0"
+    "react-router-dom": "^6.20.0"
   },
   "devDependencies": {
+    "@sparticuz/chromium": "^131.0.1",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
@@ -29,6 +30,7 @@
     "autoprefixer": "^10.4.14",
     "gray-matter": "^4.0.3",
     "postcss": "^8.4.24",
+    "puppeteer-core": "^25.13.0",
     "rehype-raw": "^7.0.0",
     "rehype-stringify": "^9.0.3",
     "remark": "^14.0.3",

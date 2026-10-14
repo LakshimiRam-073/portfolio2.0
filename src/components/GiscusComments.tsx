@@ -1,29 +1,9 @@
 import Giscus from '@giscus/react'
-import { useEffect, useState } from 'react'
 
 export default function GiscusComments() {
-  const [theme, setTheme] = useState<'light' | 'dark_dimmed'>('light')
-
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark')
-    setTheme(isDark ? 'dark_dimmed' : 'light')
-
-    const observer = new MutationObserver(() => {
-      const dark = document.documentElement.classList.contains('dark')
-      setTheme(dark ? 'dark_dimmed' : 'light')
-    })
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    })
-
-    return () => observer.disconnect()
-  }, [])
-
   return (
-    <div className="mt-16 pt-10 border-t border-gray-200 dark:border-stone-800">
-      <h2 className="text-2xl font-bold mb-6 font-sans text-gray-900 dark:text-stone-100">
+    <div className="mt-16 pt-10 border-t border-neutral-800">
+      <h2 className="text-2xl font-bold mb-6 font-sans text-neutral-100">
         Comments
       </h2>
       <Giscus
@@ -36,17 +16,17 @@ export default function GiscusComments() {
         reactionsEnabled="1"
         emitMetadata="0"
         inputPosition="bottom"
-        theme={theme}
+        theme="dark_dimmed"
         lang="en"
         loading="lazy"
       />
-      <p className="mt-4 text-xs text-gray-400 dark:text-stone-600 text-center">
+      <p className="mt-4 text-xs text-neutral-400 text-center">
         Comments are powered by{' '}
         <a
           href="https://giscus.app"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-gray-600 dark:hover:text-stone-400"
+          className="underline hover:text-neutral-100"
         >
           Giscus
         </a>
