@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="en" class="dark" style="background-color:#121212"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scaling database upgrades, migrations - 900+ clusters in near zero downtime | Stupid Notes</title>
+    <meta name="description" content="Deep-dive technical articles on databases, system design, and low-level engineering.">
+    <!-- Per-page OG/Twitter tags are injected by react-helmet-async and baked in at
+         prerender time. Keep none here to avoid duplicate/stale tags for crawlers. -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <script type="module" crossorigin="" src="/assets/index-Tc-Mr3sO.js"></script>
+    <link rel="stylesheet" crossorigin="" href="/assets/index-CmaudYtK.css">
+  <meta property="og:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta property="og:site_name" content="Stupid Notes" data-rh="true"><meta name="twitter:card" content="summary_large_image" data-rh="true"><meta name="twitter:image" content="https://stupidnotes.in/og-default.png" data-rh="true"><meta name="description" content="Database migrations, version upgrades, blue-green deployments, and lazy rolling upgrades across 900+ clusters with near zero downtime." data-rh="true"><meta property="og:title" content="Scaling database upgrades, migrations - 900+ clusters in near zero downtime" data-rh="true"><meta property="og:description" content="Database migrations, version upgrades, blue-green deployments, and lazy rolling upgrades across 900+ clusters with near zero downtime." data-rh="true"><meta property="og:type" content="article" data-rh="true"><meta property="og:url" content="https://stupidnotes.in/articles/System-Design/scaling-db-upgrades" data-rh="true"><meta name="twitter:title" content="Scaling database upgrades, migrations - 900+ clusters in near zero downtime" data-rh="true"><meta name="twitter:description" content="Database migrations, version upgrades, blue-green deployments, and lazy rolling upgrades across 900+ clusters with near zero downtime." data-rh="true"><meta property="article:published_time" content="2026-11-09" data-rh="true"></head>
+  <body>
+    <div id="root"><div class="bg-[#121212] text-[#e6e6e6] antialiased min-h-screen flex flex-col"><header class="sticky top-0 z-40 bg-[#121212]/80 backdrop-blur-md border-b border-[#222]"><nav class="max-w-[1100px] w-full mx-auto px-8 py-4 flex justify-between items-center max-md:px-6 max-sm:px-4"><a class="text-base font-medium text-[#e6e6e6] hover:opacity-70 transition-opacity font-sans" href="/">stupidnotes.in</a><div class="flex gap-5 items-center text-sm font-sans"><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/about">About</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/articles">Articles</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/resources">Resources</a><a class="text-neutral-400 hover:text-[#e6e6e6] transition-colors" href="/ai-conduct">AI Conduct</a></div></nav></header><main class="flex-1"><div class="blog-container min-h-screen py-12 md:py-16"><article class="markdown"><div class="mb-10"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 mb-6 font-sans no-underline" href="/articles">← Back to Articles</a><span class="block text-xs font-medium uppercase tracking-wider text-neutral-300 mb-3 font-sans">System Design</span><h1 class="text-3xl sm:text-4xl md:text-[2.625rem] font-bold tracking-tight mb-4 leading-tight font-display text-[#e6e6e6]">Scaling database upgrades, migrations - 900+ clusters in near zero downtime</h1><div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-neutral-400 text-sm font-sans"><span>Lakshimi Raman S</span><span>·</span><time datetime="2026-11-09">Nov 9, 2026</time><span>·</span><span>9 min read</span></div></div><p class="text-lg md:text-xl leading-relaxed text-neutral-400 mb-10 border-l-[3px] border-[#2a2a2a] pl-5 py-1">Database migrations, version upgrades, blue-green deployments, and lazy rolling upgrades across 900+ clusters with near zero downtime.</p><div class="max-w-none">
+<p>Hi folks,</p>
+<p>This blog is going to be about the database migrations, version upgrades, how you could use blue green deployment, and a lazy version which will only use one staging/offline nodes or we can use alpha,beta and gama, which will save a lots of money in servers.</p>
+<p>for the easier use of words I will use offline nodes, alpha-beta-gamma</p>
+<h1>Migration</h1>
+<p>Why do people need to upgrade databases? we can leave them as it is right?</p>
+<p>Let me tell you some of the reasons, that might sound reasonable</p>
+<ul>
+<li>Version upgrades</li>
+<li>VLAN changes</li>
+<li>Machine/Kernel upgrades</li>
+</ul>
+<p>And many more uncanny reasons like Changing table structures and character set too...</p>
+<p>Of course in MySQL you might have to change the charactersets. Say an Application wants to change their whole data from utf_8_mb3 -&gt; utf8_mb4</p>
+<p>And for this blog I am going to consider only the major version upgrades.</p>
+<p>Why do we need a major version?</p>
+<p>Simple.</p>
+<ul>
+<li>More security</li>
+<li>More optimization</li>
+<li>More features</li>
+<li>Less pain to manage(I guess)</li>
+</ul>
+<p>The goal is pretty much simple, we are going to migrate tons and tons of data from one version/VLAN to another, with Zero downtime, and even app teams won't know that it was happend.</p>
+<h1>Architechture</h1>
+<p>In general applications there are only 2 types of architechtures based on the replications,</p>
+<ol>
+<li>Fan-out replication</li>
+<li>Cascading replication</li>
+</ol>
+<p>Fan-out replication is where the master is replicated from slave1, and slave2 at the same time.</p>
+<p><img src="/assets/scaling-db/9OkbcfSba3xuZSgPWPTpDrdnfAZRLeCKOayDvTNGHC8=.png" alt=""></p>
+<p>Mostly used architechture among the companies.</p>
+<p>However, People still use Cascading replication too...</p>
+<p><img src="/assets/scaling-db/dNNJlqWReSRBfAGT5c3mdV4tX9Ovbf4yIdaoAw7P564=.png" alt=""></p>
+<p>Each, have its own advantages and disadvantages, we don't want to talk about that for now, The blue green migration will mostly the same for both.</p>
+<h1>Why Blue-Green?</h1>
+<p>There are a few ways we can migrate the databases,</p>
+<ol>
+<li>Downtime migration (if postgres -&gt; pg_upgrade)</li>
+<li>Rolling upgrade</li>
+</ol>
+<p>And others.. here and there...</p>
+<p>Downtime migration is not recommended, since it requires actual downtime of the application, so we can't accept that.</p>
+<p>Rolling upgrade is OK for minor version upgrades and machine upgrades, though... It might help in most of the cases like major version upgrades and character set changes</p>
+<h1>What is Blue-Green?</h1>
+<p>Blue - The live production database, where the live traffic comes. And where the actual Virtual IP/Domain name have been binded(via a n.w interface). Generally it is mentioned as a region.</p>
+<p>Green - Offline nodes which is getting replicated from the Blue region, especially from the master. ( We can also replicate from slaves, we should consider the replication lag)</p>
+<p><img src="/assets/scaling-db/NDVXTCCqsCGVVcDd0l1l6Ruz2ty08gKO_YjcRyX3pbk=.png" alt=""></p>
+<h1>Step by Step process</h1>
+<h6>Prerequisites</h6>
+<p>The prerequisites are pretty much simple, extra nodes... How many?</p>
+<p>Currently for a normal 3 node architechture we need the same extra nodes.. i.e we need 3 extra nodes</p>
+<p>but in sloppy/lazy blue green deployment we only just need 1 extra node, which is enough for the whole migration process</p>
+<p>And if we are going for a newer versions, we might need the image/binaries for a newer version.</p>
+<h6></h6>
+<h3>1. Data dump</h3>
+<p>At first we only have the Blue Region, i.e the live nodes. We need to find a way to take the data from the blue deployment to the Green deployment.</p>
+<p>Currently Green deployment doesn't have any data in those nodes.</p>
+<p>The easier way is to take the dump from the existing nodes. there are numerous ways to copy data from the existing nodes. but we need a exact consistent point.</p>
+<p>Like a WAL(PostgreSQL) or binlog file and position(MySQL), so better we use a <code>rsync</code> to copy those data for the newer offline nodes.</p>
+<p>Hack: The easy way is to make a consistent state, is to replicate the Slave to the offline node and cut-off the replication.</p>
+<p><img src="/assets/scaling-db/04Lm4xpnKtJ7tCPKYqXCR7y3378g24ODR7-kixLz584=.png" alt=""></p>
+<p>Okay, we have just took a consistent state from the Live nodes, Here if you clearly see the picture we have just took the data from the current version live node and replicated into the same version offline node.</p>
+<h3>2. CDC / Data transfer</h3>
+<p>This is the cool part, Now if we might wanna change the data a little bit like</p>
+<ul>
+<li>New Character set</li>
+<li>New data layout</li>
+<li>Change/edit columns</li>
+<li>New version data change</li>
+</ul>
+<p>This is the best part where you can able to change the things however we want, basically this part can be given upto the application teams, if they wanted to do something before migration.</p>
+<p>We just have to put a CDC to the Offline node to another offline node, Or if you don't want any change we can just copy the data. But here the data copy might be different when we are trying to create a new set of versions. Here we use logical data transfer.</p>
+<p>If MySQL we use mysqldump,</p>
+<p>If PostgreSQL we use pg_dump.</p>
+<p>Based on the database we have to take dump , change and re-enter the data to the other offline node.</p>
+<p><img src="/assets/scaling-db/H0EYO_eOlPfx5OZ8I2yn22tJ-HqD6YSxZI4PvpWGzU8=.png" alt=""></p>
+<p>Wow that's cool, now we have done one of the hard part.</p>
+<h3>3. Live replication</h3>
+<p>Now we have done quite a setup of Green region, but the most important part needed to be done. The Live replication between the Blue region and the green region need to be done here.</p>
+<p>Generally for version upgrades, Some of the databases support Major version replications, but most won't . For example</p>
+<p>In MySQL there is some <a href="https://dev.mysql.com/doc/mysql-replication-excerpt/8.0/en/replication-compatibility.html">compatibility</a> between major versions</p>
+<p>In Postgres there is no compatibility, so in this case we have to go for logical replication.</p>
+<p><img src="/assets/scaling-db/Ap7u9BkXrciqCAxoJU_nOMTp-VTpfJdWjUY8sJa2C9A=.png" alt=""></p>
+<p>This is completely optional, it is your choice designing those, but either have advantages and disadvantages</p>
+<p><strong>Replication from Master</strong></p>
+<p>Advantages:</p>
+<ul>
+<li>There is minimal lag</li>
+<li>Faster for swapping blue green</li>
+</ul>
+<p>Disadvantages:</p>
+<ul>
+<li>CPU/Memory constraints for new replica</li>
+</ul>
+<p><strong>Replication from Slave</strong></p>
+<p>Advantages:</p>
+<ul>
+<li>No pressure for master</li>
+</ul>
+<p>Disadvantages:</p>
+<ul>
+<li>Lag might be introduced if we going for slave</li>
+</ul>
+<p>We can choose either of those, but if we are going for real near zero downtime, we should go for replication from master, or we can afford some downtime we can go for replication from slave. In this case we are okay with the downtime, we can go from the slave.</p>
+<h3>4. Provision the rest</h3>
+<p>Now we have come to the final part, Here we can provision the rest of the offline nodes(beta and gamma), the third node(gamma) which can be removed and re-provisioned.</p>
+<p><img src="/assets/scaling-db/_C4BHn5m6jRSRApc8Ix-jPXytq4og5jWukNuyVVBxPw=.png" alt=""></p>
+<h3>5. Swap the cluster</h3>
+<p>When there is non peak hours, we can just swap the writes with swapping the VIP(Virtual IP) or the domain. This is the most important step, a simple slip here will cause more downtime, make sure to have fallback logic.</p>
+<p><img src="/assets/scaling-db/MDSP1VbaEtWLoJpr6041y2-UwSxn4Hn_N19t95_J_sU=.png" alt=""></p>
+<p>The switch is either a configuration change or any secondary data connection over connection pool.</p>
+<h1>Lazy/Sloppy Blue-Green</h1>
+<p>Here we only need one node. We can skip the step 1: Data dump, taking out the Slave and using it as Offline Node gamma.</p>
+<p><img src="/assets/scaling-db/Opp1_kMaaQb0n1ficsrCvimCj-CGsx49kmirRtuXJrs=.png" alt=""></p>
+<p>Here we are completely skipping the first step(Data dump) and making it as a source for the migration. Then the subsequent steps are the same, but with just two nodes.</p>
+<p><img src="/assets/scaling-db/q3yog4danOx2Yd1Xv1gnvN8kmyjyOFY45c9Sc4xgH-M=.png" alt=""></p>
+<p>There are many consequences and advantages over this method,</p>
+<ol>
+<li>We take the data from the live replicating nodes, so there is a compromise in High availablity in online deployment</li>
+<li>Services which need high availablity can not go with this approach, since we are going with only 2 nodes</li>
+<li>Cost efficient</li>
+<li> Requires lesser time to finish the migration</li>
+</ol>
+<h1>Scaling 900+ clusters</h1>
+<p>Ok now we can able to scale only cluster, how about many clusters for many applications. Obviously we need more like an workflow.</p>
+<p>My take would be easier to write on our own, or use some open source like <a href="https://temporal.io/product">Temporal</a>.</p>
+<p>There are three ways to write these types of workflows,</p>
+<ol>
+<li>Schedule</li>
+<li>Jobs</li>
+<li>Dynamic schedules</li>
+</ol>
+<h3>Schedule</h3>
+<p>To be honest a schedule is a overkill for this process. There is a two way context for schedules,</p>
+<ol>
+<li>A schedule for every cluster.</li>
+<li>A schedule for all clusters.</li>
+</ol>
+<p><strong>A schedule for every cluster</strong></p>
+<p>Each cluster has its own scheduled task that periodically checks whether an upgrade is due. Since database upgrades may happen only once every three months or even longer, these tasks will spend most of their time checking for work that doesn't exist. This creates unnecessary scheduling overhead.</p>
+<p> <strong>A schedule for all clusters</strong></p>
+<p>A central scheduler periodically checks all clusters for pending upgrades and assigns migration work to available workers. Although this avoids maintaining individual schedules, it still requires periodically scanning clusters, even when nothing has changed.</p>
+<p>For our use case, schedule-based execution alone feels like an overkill</p>
+<h3>Jobs</h3>
+<p>Job is a single work, done by worker nodes. It is just linear method to assign migrations for app servers and no state will be maintained</p>
+<p>A job represents a single unit of work that needs to be executed by a worker.</p>
+<p>When a migration request is created, it is added to a job queue. Available workers pick up jobs and execute migrations for the corresponding clusters.</p>
+<h3>Dynamic schedules</h3>
+<p>This is the perfect way of doing our things.</p>
+<p>Instead of periodically checking every cluster, we maintain the state of each migration and trigger the next action when a relevant event occurs.</p>
+<p>In simple, We just submit the job when we needed, then it will act as a schedule(checks the cluster state with intervals) with state, and whenever the job finished we remove that job.</p>
+<p>For example:</p>
+<ul>
+<li>Data dump completed -&gt; proceed to CDC/data transfer.</li>
+<li>Replication is healthy -&gt; proceed to data corrupt check.</li>
+<li>Swap failed -&gt; retry or wait for manual intervention.</li>
+</ul>
+<p>This avoids unnecessary periodic checks and allows migrations to progress based on actual events and conditions.</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><h2 class="text-2xl font-bold mb-6 font-sans text-[#e6e6e6]">Comments</h2><giscus-widget repo="LakshimiRam-073/portfolio2.0" repoid="R_kgDORpPTlA" category="General" categoryid="DIC_kwDORpPTlM4C6UZb" mapping="pathname" strict="0" reactionsenabled="1" emitmetadata="0" inputposition="bottom" theme="dark_dimmed" lang="en" loading="lazy" host="https://giscus.app"></giscus-widget><p class="mt-4 text-xs text-neutral-400 text-center">Comments are powered by <a href="https://giscus.app" target="_blank" rel="noopener noreferrer" class="underline hover:text-[#e6e6e6]">Giscus</a>. Sign in with GitHub to leave a comment.</p></div><div class="mt-16 pt-10 border-t border-[#2a2a2a]"><a class="text-sm font-medium text-neutral-400 hover:text-[#e6e6e6] transition-colors inline-flex items-center gap-1.5 font-sans no-underline" href="/articles">← Back to Articles</a></div></article></div></main><footer class="border-t border-[#222] bg-[#121212] py-8 mt-12"><div class="max-w-4xl mx-auto px-6 text-center text-neutral-500 text-sm"><p>© 2026. All rights reserved.</p></div></footer></div></div>
+  
+
+</body></html>
